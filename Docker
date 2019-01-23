@@ -1,0 +1,147 @@
+** After executing restart command within your container first start your computer then take -it.
+	# docker container run -d -p 80:80  nginx 	
+	# docker container start <container_name>
+	# docker container exec -it <container_name> bash
+	# docker container stop <container_name>
+# docker commit -m "SSH installed & user created" -a "author" <existing_image_name> <new_name:tag>
+
+** exec is used to run  any command at running container.
+	# docker container exec -u 0 -it <container_name> bash	(connect as root user to non privileged container)
+
+
+DOCKER INSTALLATIONS IN LINUX
+-------------------------------
+
+$ curl -fsSL get.docker.com -o get-docker.sh
+# ./get-docker.sh
+
+
+# base=https://github.com/docker/machine/releases/download/v0.14.0 &&
+  curl -L $base/docker-machine-$(uname -s)-$(uname -m) >/tmp/docker-machine &&
+  sudo install /tmp/docker-machine /usr/local/bin/docker-machine
+# docker-machine --version
+
+
+# sudo curl -L https://github.com/docker/compose/releases/download/1.22.0/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker- compose
+# sudo chmod +x /usr/local/bin/docker-compose
+# docker-compose --version
+
+** Executing Docker commands recquire ROOT priviledge
+
+** sudo usermod -aG docker <user>   (so that user can run docker commands)
+====================================================================
+
+# docker version
+# docker info
+# docker container run hello-world
+# docker container run -p 80:80 nginx           	(RUN A DOCKER) (PUBLISH - Opens a Port) 	HOST:CONTAINER
+# docker container run -d -p 80:80  nginx  		(RUN DOCKER IN THE BACKGROUND & GIVE CONTAINER ID)
+			"OR" 
+# docker container ls					(show running container)
+# docker container stop <container_name>
+# docker container start -ai <container_name> 		(Start a existing container)
+# docker container rm -f <container1_id> <container2_id>
+
+** Everytime you issue "docker run" it starts a new container from that container.
+
+# docker container run -d -p 80:80 --name webhost nginx
+# docker container logs webhost
+# docker container rm <container_ID1> <container_ID2> <container_ID3>  (REMOVE DOCKER IMAGES)
+
+ASSIGNMENT
+------------
+# docker container run -d -p 3306:3306  --name db -e MYSQL_RANDOM_ROOT_PASSWORD=YES mysql 
+# docker container logs db   (TO CHECK ROOT PASSWORD)
+# docker ps
+
+MONITOR DOCKER PROCESSES (from outside)
+========================================
+
+# docker ps
+# docker ps -a
+# docker container top <container name>
+# docker container inspect <container name>	(GIVE YOU A JSON CONFIGURATION FILE)
+# docker container stats <container name>
+
+
+GET INSIDE A DOCKER CONTAINER 
+===============================
+
+** You don't need to SSH Containers use -it option.
+
+# docker container run -it --name testos ubuntu
+# docker container run -it --name webhost nginx bash	(specify SHELL in case of app container)
+# exit
+
+# docker container exec -it nginx bash	(get inside a already running container)
+
+
+DOCKER NETWORK MANAGEMENT
+==========================
+
+# docker network ls
+# docker network inspect <network_name>
+# docker network create --driver 			(if you don't specify driver it will automatically choose bridge)
+# docker network connect <network_ID> <container_ID>
+# docker network disconnect
+
+# docker network create my_app_network	(create a new bridge network my_app_network)
+# docker container run -d --name new_nginx --network my_app_network nginx 	(create a container with newly created network)
+
+
+DOCKER IMAGE MANAGEMENT
+=========================
+
+# docker login			(dockerHub account login)
+# docker logout
+# docker pull nginx   		(download image)
+# docker history <image>	(show image layer history)
+# docker image inspect <image> 
+# docker image tag SOURCE_IMAGE[:TAG] TARGET_IMAGE[:TAG]	(give your local docker image a tag for online identity)
+# docker image push SOURCE_IMAGE[:TAG] 		(upload your image to dockerHub)
+
+# docker image rm <image_name>			(remove docker image cache locally)
+# docker image build -t <image:tag> . 	(Build Docker Container with Dockerfile, issue the command in the same(.) directory)
+** After build Container don't forget to run it.
+
+# docker container run -p 80:80 --rm image_with_tag	
+** rm - automatically remove the container when exit
+
+
+IMAGE ASSIGNMENT
+=================
+
+1. Make Dockerfile, Build it, test it, push it, remove it, run it.
+
+
+DOCKER VOLUMES
+==============
+
+# docker volumn ls
+# docker run -it --name volumetest -v /my_data centos:latest bash
+** /var/lib/docker/volumes
+
+
+
+
+
+FROM - 		every Dockerfile starts with FROM. set the base image for your Dockerfile
+COPY vs ADD - 	these two are often confused, so I’ll explain the difference.
+ENV - 		well, setting environment variables is pretty important.
+RUN - 		let’s run commands.
+VOLUME - 	another source of confusion, what’s the difference between Dockerfile VOLUME and container volumes?
+USER - 		when root is too mainstream.
+WORKDIR - 	set the working directory.
+EXPOSE - 	get your ports right.
+ONBUILD - 	give more flexibility to your team and clients.
+
+
+
+ 
+100052655444
+INDB0000044
+
+
+
+
+

@@ -1,0 +1,69 @@
+#version=DEVEL
+# System authorization information
+auth --enableshadow --passalgo=sha512
+repo --name="Server-HighAvailability" --baseurl=file:///run/install/repo/addons/HighAvailability
+repo --name="Server-ResilientStorage" --baseurl=file:///run/install/repo/addons/ResilientStorage
+# Use CDROM installation media
+cdrom
+# Use graphical install
+graphical
+# Run the Setup Agent on first boot
+firstboot --enable
+ignoredisk --only-use=sda
+# Keyboard layouts
+keyboard --vckeymap=us --xlayouts='us'
+# System language
+lang en_US.UTF-8
+
+# Network information
+network  --bootproto=static --device=ens3 --gateway=172.0.0.1 --ip=172.0.0.10 --netmask=255.255.255.255 --ipv6=auto --activate
+network  --hostname=server1.redhat.com
+
+# Root password
+rootpw --iscrypted $6$CVcDozlbisPM4Vzl$pCM7QBcQC38jT2GWgLmyb05svUri0OcXCdPwYHjawdbKX6X2Zk.IAVosbL2YxTSW7ppo9FwfVz.kayWQflk1i0
+# System services
+services --enabled="chronyd"
+# System timezone
+timezone America/New_York --isUtc
+user --name=nikhil --password=$6$RFERvahRq.h/nNxO$0qcFG/a4P9I5tTSjAcn9xTW/.xdZhQ6eEyM03nhHOrHi5ueSckxcJRBkrwmCQDQS1T/KFXijY3jawcCs3dpVI/ --iscrypted --gecos="nikhil"
+# X Window System configuration information
+xconfig  --startxonboot
+# System bootloader configuration
+bootloader --append=" crashkernel=auto" --location=mbr --boot-drive=sda
+# Partition clearing information
+clearpart --none --initlabel
+# Disk partitioning information
+part /boot --fstype="ext4" --ondisk=sda --size=1024
+part swap --fstype="swap" --ondisk=sda --size=2048
+part / --fstype="ext4" --ondisk=sda --size=17407
+
+%packages
+@^graphical-server-environment
+@base
+@core
+@desktop-debugging
+@dial-up
+@fonts
+@gnome-desktop
+@guest-agents
+@guest-desktop-agents
+@hardware-monitoring
+@input-methods
+@internet-browser
+@multimedia
+@print-client
+@x11
+chrony
+kexec-tools
+
+%end
+
+%addon com_redhat_kdump --enable --reserve-mb='auto'
+
+%end
+
+%anaconda
+pwpolicy root --minlen=6 --minquality=1 --notstrict --nochanges --notempty
+pwpolicy user --minlen=6 --minquality=1 --notstrict --nochanges --emptyok
+pwpolicy luks --minlen=6 --minquality=1 --notstrict --nochanges --notempty
+%end

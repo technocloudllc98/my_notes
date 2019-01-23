@@ -1,0 +1,672 @@
+# df -h 			(show disk space)
+# free -m			(show memory)
+# cat /etc/centos-release       (show release of)
+# du -hs                  	(show space taken by that specific folder)
+# lspci		(gives info about system drivers)
+# lscpu		(gives info about your CPU)
+# lsblk 	(gives info about HDD & all the partitons)
+# uname -a 	(show kernel version)
+
+# setenforce 0
+# vim /etc/sysconfig/selinux : SELINUX=permissive (also disable startup) 
+# rpm -qc <package_name>     : show all configuration file
+# rpm -ql <package_name>     : show all files attach with that packages
+
+
+Servers in RHCSA                                   	 Servers in RHCE
+---------------------------					---------------------------
+HTTP								NTP
+FTP									SMB
+NFS									SMTP
+VNC								SSH	
+									DNS
+									SQL (MariaDB, MySql)
+
+LAB SETUP 1 (INSTALLATION)
+----------------------
+1. Install RHEL in physical machine - Server with GUI.
+
+2. Install KVM in physical machine 
+	# grep -E '(vmx|svm)' /proc/cpuinfo	(We should get the word either vmx or svm in the output)  OR # cat /proc/cpuinfo 
+	# yum install qemu-kvm qemu-img virt-manager libvirt libvirt-python libvirt-client virt-install virt-viewer bridge-utils
+	
+	# systemctl start libvirtd          (start libvirtd service)          
+	# systemctl enable libvirtd       (enable libvirtd service)
+ 	
+	# lsmod | grep kvm                   (check KVM module is loaded or not)
+	# virt-manager
+
+3. Create a Virtual Network in KVM with these options
+	- it should be an isolated network with IP 172.25.0.0/24 & DHCP range 172.25.1.10-172.25.1.254
+	- verify the ip configuration using "ifconfig" 
+
+4. Install minimal RHEL in Virtual Machine with these options
+	- Memory should be 1G with 20G Disk Space
+	- IP address: 172.25.0.40
+	- Subnet mask: 255.255.255.0
+	- Default gateway : 172.25.0.1
+	- Hostname : server1.redhat.com
+
+5. Take the SSH of server1.example.com from your host machine            		Ctrl+Shift+T: new tab
+	- enter server1.redhat.com details in your /etc/hosts file                               Alt + 1/2/3  : Change Tab
+      	# ping server1
+	# ping server1.redhat.com
+	# virsh start Server1
+	# ssh root@server1.redhat.com 
+
+
+LAB SETUP 2 (server1)
+------------------------------------
+1. Create a local YUM repo for Software installation.
+	# mount /dev/sr0 /mnt  (connect the iso using virt-manager & mount it)
+	# cd /mnt/
+	# cp -rvf ../mnt/ /opt/    (copy whole dvd to /opt/mnt/)
+	# cd /etc/                         
+	# tar -cvf repobackup.tar yum.repos.d (create backup)
+	# cd /yum.repos.d
+	# rm -rf *                          (remove all repo file)
+	# yum repolist                 (result should be 0)
+	# vi /etc/yum.repos.d/dvd.repo
+		[dvd]
+		name=dvd repos
+		baseurl=file:///opt/mnt/   (three slashes)
+		enabled=1
+		gpgcheck=0
+	# createrepo /opt/mnt
+	# yum clean all
+	# yum repolist
+	# yum update
+	# yum install createrepo
+
+
+LAB SETUP 3 (Host Machine)
+------------------------------------------
+1. Install httpd and verify its working with elinks browser.
+	# yum groupinstall "Basic Web Server"
+	# systemctl enable httpd
+	# systemctl start httpd
+	# firewall-cmd --permanent --add-service=http
+	# firewall-cmd --permanent --add-service=https
+	# firewall-cmd --reload
+	# yum install elinks
+
+2. Create your ip entry in /etc/hosts file
+	 - 192.168.0.6       host.redhat.com              hostmachine
+** http://192.168.0.6
+** http://host.redhat.com/
+
+3. Upload the OS installation ISO File on Apache Server
+	# cd /var/www/html
+	# mkdir -p iso/centos7.4
+	# cd /mnt/
+	# cp -av /mnt/. /var/www/html/data/iso/centos7.4/
+** http://192.168.0.6/iso/
+** http://host.redhat.com/iso/
+
+4. Install & Activate FTP Server
+	# yum install vsftpd
+	# systemctl enable vsftpd
+	# systemctl start vsftpd
+	# firewall-cmd --permanent --add-service=ftp
+	# firewall-cmd --reload
+	# cd /var/ftp/pub
+	# touch file1.txt file2.txt file3.txt file4.txt file5.txt
+** ftp://192.168.0.6/pub/
+** ftp://host.redhat.com/pub
+
+4. Install KickStart.	
+	# yum install system-config-kickstart
+	# system-config-kickstart
+
+5. Generate a kickstart configuration file with these options and upload it on ftp 
+	- use UTC clock
+	- encrypt system password
+	- reboot after installation
+	- HTTP Server: http://host.redhat.com/
+	- HTTP Directory: /data/iso/centos7.4/
+	- install new boot loader
+	- partition - swap : 2G 
+                  	     /boot: 1000M 
+                   	     / : remaining all
+	- firewall SELinux : warn
+
+
+LAB SETUP 4 (server2)
+---------------------------------
+1.  Install a new VM with Kickstart
+	- minimum RAM should be 2G for HTTP/FTP install 
+	- on boot screen press "Esc" and type linux ks=http://host.redhat.com/data/ks.cfg
+	- start your vm with cd image to get the boot screen
+	- kickstart file contains http/ftp/nfs location of the installation image. 
+
+______________________________________________________________________________________________________________________________________________
+=====================================================================================
+
+
+WildCard Globbing
+-----------------------------
+ls host*        - any number of character
+ls ?ost         - only one charater   
+ls [!hm]ost   	- negation
+ls -d p*        - show only directory
+grep ^The   	- should start with ^
+grep og$       	- should end with og
+grep [0-9][0-9] - series
+grep [hm]ost    - choice
+grep .          - any character
+
+vi editor
+--------------
+dd :	Deletes the current line.
+yy :	Copies the current line.
+p   :	Pastes the current selection.
+u   :	Undoes the last command. Repeat as often as necessary.
+Ctrl+r  :	Redoes the last undo.
+:%s/old/new/g : Replaces all occurrences of old with new
+
+
+LAB -2 (ESSENTIAL FILE MANAGEMENT)
+-----------------------------------------------------------
+1. Locate the right man page for information on how to set a password.
+2. Use the man page for "useradd" and create a user "lisa"
+3. Set the password for user lisa to "password".
+4. Use globbing & ls to show all files in /etc that have a number in their name. : $ ls | grep [0-9]
+5. from /etc/ use ls with pipe to show result page by page.
+
+
+LAB -3 (FILE MANAGEMENT)
+-------------------------------------------
+1. Create a directory with the name /test
+2. Copy all files that start with a,e or i from /etc/ to /test : 		cp /etc/[aei]* /test
+3. Create a subdirectory /test/a-files
+4. Move all files that start with "a" from /test to /test/a-files         can't operate
+5. Copy the file /etc/hosts to /test
+6. Make a symbolic link with the name /test/myhosts that points to /etc/hosts: 	# ln -s /etc/hosts /test/myhosts
+7. Create a compressed archive that contains the entire /test directory
+8. Remove the /test directory. :	 rm -rf /test
+9. Restore it from the archive. :	 tar -xvf test.tar -C /
+NOTE: -C to specify the target location
+
+you can use :/ while using "less" this command let you search specific strings when you are using less
+
+
+LAB -4 (TEXT PROCESSING)
+-------------------------------------------
+1. Use head & tail to display the fifth line of the /etc/passwd.                : head -5 /etc/passwd | tail -1
+2. Use sed to display the fifth line of the file /etc/passed.                        : sed -n '5p' /etc/passwd              p for print
+3. Use awk in a pipe to filter the first column of the results of the commands pa aux.         : ps aux | awk '{ print $1 }'
+4. Use grep to show the names of all files in /etc/ that have lines starting with text 'root'. : grep ^root * 2> /dev/null
+5. Use grep to show all lines from all files in /etc that contains exactly 3 characters.       : grep ^...$ * 2> /dev/null
+6. redirect output of /etc/passwd to a txt file.
+7. find all txt files in . and move them to /testdir
+8. find all txt files in /testdir and chmod to 777
+9. find all files with in /testdir with permission 777 and change them to 444.
+10. find all files belongs to user nikhil in ~.
+
+NOTE: * in these grep will print output on the screen without taking time in blinking cursor.
+
+
+
+LAB -5 (SSH)
+---------------------
+1. Connect to an external server ldap.rhatcert.com as user sander which uses port 2022.
+	# ssh -p 2022 sander@ldap.rhatcert.com
+
+2. Check & modify your ssh server identification key file and try to connect again with the same server
+	# vi ~/.ssh/known_hosts
+	# ssh -p 2022 sander@ldap.rhatcert.com
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@          WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED       	@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+NOTE: this error occur when server is reinstalled on the same ip addres, it will change the authentication key
+In that case open the identification key file /.ssh/known_hosts and remove the identification key so that the  
+correct key will be reinstalled on the next connection.
+
+3.  Modify your ssh configuration file on the remote server.
+	#vi /etc/ssh/sshd_config
+		- Port 2022
+		- PermissionRootLogin no
+
+NOTE: Public Key location on server  : /etc/ssh/ssh_host.pub
+            Private Key location on server : ~/.ssh/id_rsa
+
+4. Configuring key based authentication
+	# ssh -keygen                  (On client side)
+	- accept all default settings.
+	- private key will written on: ~/.ssh/id_rsa file
+	- public key wil written on: ~/.ssh/id_rsa.pub file
+
+	# ssh-copy-id -p 2022 sander@ldap.rhatcert.com      (copy public key to ldap.rhatcert.com)
+	# ssh -p 2022 sander@ldap.rhatcert.com              (ssh the server)
+	# exit
+
+5. Copy files to ldap.rhatcert.com
+	# scp -P 2022 newfile ldap.rhatcert.com:~
+
+6. Open a virtual console and login as root now back to text-based-console
+	- Alt+Ctrl+F2
+	- Alt+Ctrl+F1
+
+
+LAB - 6 (USER & GROUPS)
+---------------------------------------
+# id lisa        : show all the groups user lisa is a member of
+/etc/passwd : user info file
+/etc/shadow : users password file
+/etc/group    : users group file
+/etc/login.defs : user parameters defination file
+/etc/skel/     : all the files of this directory automatically copies to the new user directory
+vim useradd : useradd default file.
+
+1. Create a user named lisa.
+2. Set the password for user lisa to "password".
+3. create a group "sales".
+4. Include lisa in the group "sales",  but don't change its primary group.
+5. set the password for lisa to expire after 90 days.   : passwd -x 90 lisa
+
+
+LAB - 7 (CONNECTING TO A LDAP SERVER)
+---------------------------------------------------------------
+server.rhatcertification.com 
+cn = server
+dc = rhatcertification
+dc = com
+
+# yum install authconfig-gtk
+# yum install nscd nss-pam-ldapd pam_ldap pam_krb5
+# authconfig-gtk
+	- user account database - LDAP
+	- LDAP search base DN - dc=rhatcertification,dc=com  (you will get it from your LDAP Provider)
+	- ldap://server.rhatcertification.com
+	- authentication method - LDAP password
+	- use TLS for encryption
+	- Download certification from: ftp://server.rhatcertification.com/pub/slapd.pem
+# su ldapuser5
+# id
+# cd /tmp
+# touch testfile   (you can create file in /tmp directory)
+
+# yum install -y autofs
+# vim /etc/auto.master
+
+NOTE: LDAP user is successfully authenticate, now we need to set the home directory, For that we will use automount
+# yum install autofs
+# vi /etc/auto.master     (to set configuration)
+	- /misc 	/etc/auto.misc
+	- /home/guests	/etc/auto.guests       (all home directory is in home/guests)
+
+# vi /etc/auto.guests
+	- *	-fstype=cifs,username=ldapusers,password=password  ://server.rhatcertification.com/data/&
+	- *	-rw		nfsserver:/home/guests/&        (with nfs, that u will find in exam)
+
+NOTE: in exam you will get nfs provided directory for automount with LDAP
+
+
+LAB - 8 (MANAGING PERMISSION)
+---------------------------------------------------
+if the user in question is the owner of the directory that  contains that file, if not then it will check if the  user 
+is the member  of the group of the owner if not, then system will check permission assigned to other entities.
+                 FILE         FOLDER
+____________________________________
+read 	: open	: list
+write	: modify	: add/remove files
+execute	: run	: cd
+
+1. Create sales/, account/ in /data, change group owner to their respective group.
+2. Bob is owner of account group and Lisa is owner of sales department, change it.
+3. Set account folder read, write, execute for u & g, & nothing for others.
+4. Create two more users caroline, lori.
+5. In /sales, members of the group sales can read, write files and members of account group can only read.
+6. In /account, members of the group account can read, write files and members of sales group can only read.
+
+# setfacl -R -m g:sales:rx /data/account  (R- recursevly, apply permission to existing objects)
+# setfacl -m d:g:sales:rx /data/account   (set default permission for the folder)
+
+# setfacl -R -m g:sales:rx account   	(sales group wil also be able to read, exe files on account folder)
+# setfacl -m d:g:sales:rx account      	(default permission for newly created directory also) 
+
+NOTE: first set all the permissions then set ACL, setting permission on directory always need two commands
+current permission command and default permission command for newly created child directories.
+
+
+LAB - 9 (NETWORKING)
+------------------------------------
+# ip address help
+# ip addr show
+# ip route show
+# ip addr add dev ens133 10.0.0.10/24  (add ip 10.0.0.10 to ens133)   (after restart it will gone)
+# ip -s link                                                   (show ip statistics)
+# ip route add 20.0.0.0/8 via 192.168.4.4
+
+# cd /etc/sysconfig/network-scripts/      (for permanent changes)
+# vi ifcfg-ens133                                         (open & Configure your NIC)
+# nmcli con down ens133           (after changing anything in network configuration file alway restart it)    
+# nmcli con up ens133
+
+# vi /etc/hostname               (This files contain your hostname)
+
+
+LAB - 10 (MANAGE SOFTWARE)
+----------------------------------------------
+
+
+
+LAB - 10 (MANAGING VIRTUAL MACHINE)
+-------------------------------------------------------------
+
+# virsh list --all
+# virsh list
+# virsh distroy server2   (stop a vm)
+
+
+
+LAB - 11 (SCHEDULING TASKS)
+-----------------------------------------------
+cron jobs : you just have to place the script in that crontabs directory.
+ 
+# ls -d /etc/cron*
+
+syntax: m h dom mon dow command
+m = minutes
+h = hour
+dom = day of month
+mon = month
+dow = day of week 
+
+Note: you can use * * * * to represent every
+Ex: dom = * (every day of month)
+    mon = * (every month)
+    dow = * (every day of week)	
+
+dow 	0 = sunday
+		1 = monday 
+		2 = tuesday
+		3 = wednesday
+		4 = thursday
+		5 = friday
+		6 = saturday
+
+NOTE: sudo crontab -e : it will give root access to chrone jobs
+
+Instead of modifying /etc/crontab, different cron configuration files are used:
+■ Cron files in /etc/cron.d
+■ Scripts in /etc/cron.hourly, cron.daily, cron.weekly, and cron.monthly
+■ User-specific files that are created with crontab -e
+
+If you want to add cron jobs that are not bound to a specific user account (and which for that  reason 
+by default will be executed as root if not specified otherwise), you add these to the /etc/cron.d directory.
+
+■ The crontab-l command does list cron jobs, but only for the current user account.
+■By default, all users can enter cron jobs. It is possible to limit which user is allowed to schedule cron 
+jobs by using the /etc/cron.allow and /etc/cron.deny configuration files. If the cron.allow file exists, a  
+user must be listed in it to be allowed to use cron. If the /etc/cron.deny file exists, a user must not be listed 
+in it to be allowed to set up cron jobs.
+
+Configuring at
+---------------------
+# at 14:00 
+at> logger message from at 
+ctrl+D
+
+# atq : show at jobs list
+# atrm 1 : remove first at job
+
+
+LAB -12 (CONFIGURING LOGGING)
+----------------------------------------------------
+■ direct write to somewhere.log
+■ through systemctl = journald  (newest)
+■ through rsyslogd =   /var/log/..  (Classical)
+
+systemd takes care of starting processes through journald
+rsyslogd takes care of current running process.
+
+# journalctl -b : show boot logs.
+# journalctl --since=yesterday
+# journalctl -u <service_name>
+# journalctl -u <service_name> -o verbose : for detailed info
+# journalctl _COMM=<command>
+# journalctl _COMM=<command> -o verbose : for detailed info
+
+LOgrotate: a service that takes care of your log files that it should not fill the entire HDD, after certain 
+time it will rotate the logs file ie. remove the old one and create a new.
+
+# cat /etc/logrotate.conf      (configure logrotate)
+# cd /etc/logrotate.d          (specific logrotate files)
+
+==============================================================================================================================================
+
+LAB -13 (MANAGING PARTITIONS)
+---------------------------------------------------
+# cat /proc/partitions     	(show the newly added partitions)
+# fdisk /dev/vdb              	(follow instructions and create partition)
+# mkfs -t xfs /dev/vdb1  	(create filesyatem)
+# mount /dev/vdb1 /mnt 	(mount the filesystem)
+# df -h					(verify the mount)
+
+
+Creating a Swap Partition
+--------------------------
+# cat /proc/partitions	(show the newly added partitions)
+# fdisk /dev/vdb       	(follow instructions and create partition)
+	** Type t to change the partition type. If you are using fdisk, use partition type 82.
+# mkswap /dev/vda6
+# free -m
+# swapon /dev/vda6   	(switch on the newly allocated swap space)
+# free -m 
+
+
+Adding Swap Files   (If you do not have free disk space to create a swap partition)
+------------------------------------------------------------------------------------
+# dd if=/dev/zero of=/swapfile bs=1M count=100
+# mkswap /swapfile
+# swapon /swapfile
+
+# e2label /dev/sda1
+/my_new_disk
+
+Create a LUKS encrypted volume
+-------------------------------------------------
+# fdisk /dev/vdb   		(Follow the instructions and create a simple partition)
+# cryptsetup luksFormat /dev/vdb2   	(Passphrase is - frank@8957) 
+# cryptsetup luksOpen /dev/vdb2 secret (Open it by giving a name - secret)
+# cd /dev/mapper					(go to /dev/mapper)
+# ls							(Check it, it should contain "secret" directory)
+# pwd
+# mkfs -t xfs /dev/mapper/secret     		(Create filesystem)
+# cryptsetup -v status secret                   (check the status of crypt partition)
+# mount /dev/mapper/secret /mnt 		(mount the filesystem)
+# df -h						(verify the mount)
+
+# umount /secret
+# cryptsetup luksClose /dev/mapper/secret (First umount & close it to disconnect)
+
+# vim /etc/crypttab
+		secret	/dev/vdb2	none
+# reboot
+
+
+
+LAB -13 (MANAGING LVM)
+----------------------------------------
+
+1. Create a simple Partition and before writing changes change it's type to Linux LVM :8e
+2. Create Physical Volume
+3. Create Volume Group 	 (with a name)
+4. Create Logical Volume (with name & size)
+5. make Filesystem & Mount it.
+
+# fdisk /dev/vdb    (create a partition)
+# pvcreate /dev/vdb3
+# pvs
+# vgcreate myvg /dev/vdb3
+# vgs
+# lvcreate -n mylv -L 1000M myvg
+# mkfs.ext4 /dev/myvg/mylv
+# mount /dev/myvg/mylv /mnt
+
+
+INCREASE LVM SIZE
+------------------
+1. First Create a Physical Volume
+2. You can Directly extend Volume Group.
+3. Extend LV directly.
+
+# fdisk /dev/vdb
+# vgextend myvg /dev/vdb5
+# vgs
+# lvextend -l +100%FREE -r /dev/myvg/mylv
+# df -h
+
+REDUCING LVM SIZE
+------------------
+1. Unmount the disk
+2. Resize the FS 
+3. Reduce LV size
+4. 
+
+# umount /mnt
+# e2fsck -f /dev/myvg/mylv             (check file system)
+# resize2fs /dev/myvg/mylv 1000M
+# lvreduce -L 102400K /dev/myvg/mylv         (reduce to 100 MiB)
+# mount -a
+# df -h
+
+After making any changes to grub configuration, write it through # grub2-mkconfig
+# cat /etc/default/grub
+# grub2-mkconfig
+
+
+firewall command structure
+------------------------------------------
+
+firewall-cmd --get	-zones
+				-services
+				-default-zone
+firewall-cmd --list-all
+				
+rpm -qc vsftpd (show all the configuration file of vsftpd)
+yum install lftpd (ftp client for checking)
+
+=================================================
+
+timedatectl set-ntp yes (it will enable chrony.d service = configuration file in /etc/chrony.conf)
+timedatectl ser-ntp 0
+systemctl status chronyd.service
+
+=================================================
+
+yum install tigervnc tigervnc-server
+useradd vncuser
+passwd vncuser
+cd /usr/lib/systemd/system
+ls
+cp vncserver@.service vncserver@\:1.service
+vi vncserver@\:1.service
+	ExecStart=/sbin/runuser -l vncuser-c .................
+	PIDFile=/home/vncuser/......................................         (Replace <USER> with your vncuser)
+systemctl daemon-reload
+su - vncuser
+vncpasswd
+exit
+sytemctl start vncserver@\:1.service
+sytemctl status vncserver@\:1.service
+firewall-cmd --permanent --add-service vnc-server
+firewall-cmd --reload
+
+
+vncviewer -via vncuser@localhost localhost:1     (establish ssh)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Secure#12345
+
+
+
+
+
+
+
+
+
+
+
+

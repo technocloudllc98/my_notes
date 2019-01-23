@@ -1,0 +1,72 @@
+INSTALL TOMCAT 8.5
+===================
+# wget --no-cookies --no-check-certificate --header "Cookie: gpw_e24=http%3A%2F%2Fwww.oracle.com%2F; oraclelicense=accept-securebackup-cookie" "http://download.oracle.com/otn-pub/java/jdk/8u181-b13/96a7b8442fe848ef90c96a2fad6ed6d1/jdk-8u181-linux-x64.tar.gz"
+# cd /opt
+# tar zxvf ~/jdk-8u181
+# mv jdk-8u172/ jdk8
+# cd jdk8/
+# alternatives --install /usr/bin/java java /opt/jdk8/bin/java 2
+# alternatives --config java
+# java -version
+# alternatives --install /usr/bin/jar jar /opt/jdk8/bin/jar 2
+# alternatives --install /usr/bin/javac javac /opt/jdk8/bin/javac 2
+# alternatives --set jar /opt/jdk8/bin/jar
+# alternatives --set javac /opt/jdk8/bin/javac
+# javac -version
+
+# wget https://www.apache.org/dist/tomcat/tomcat-8/v8.5.34/bin/apache-tomcat-8.5.34.tar.gz
+# cd /opt
+# tar zxvf ~/apache-tomcat
+# mv apache-tomcat/ tomcat8.5
+# cd tomcat8.5/
+# cd bin/
+
+# echo "export CATALINA_HOME="/opt/tomcat8.5"" >> ~/.bashrc
+# source ~/.bashrc
+./startup.sh
+
+** You can also use these commands
+# /opt/tomcat8.5/bin/catalina.sh stop
+# /opt/tomcat8.5/bin/catalina.sh start
+
+
+TOMCAT USER CREATION (FOR WEBGUI MANAGEMENT)
+============================================
+# vi /opt/tomcat8.5/conf/tomcat-users.xml 
+	<role rolename="manager-gui"/>
+	<user username="manager" password="manager" roles="manager-gui"/>
+
+** Read the instructions in conf/tomcat-users.xml file
+
+
+DEPLOY AN APPLICATION
+=====================
+** Download sample.war from internet
+** copy sample.war in webapps/
+# jar -xvf sample.war
+
+
+RUN MULTIPLE TOMCAT INSTANCES ON DIFFERENT PORTS
+=================================================
+** Copy all the contents from /tomcat directory to a new directory
+** Open /conf/server.xml and change ports to avoid port confliction.
+	Connector port="8081"
+	redirectPort="8444"
+	Connector port="8444"	(SSL/TLS HTTP/1.1)
+	Connector port="8010"	(AJP 1.3)
+
+
+NGINX PROXY
+===========
+redirect all ports to a specific directory through nginx
+
+
+LOAD BALANCING
+==============
+use nginx to balance load on two running tomcat instances -14
+
+
+CHECKING LOG 
+=============
+tomcat8.5/log/catalina.out is the main log file
+

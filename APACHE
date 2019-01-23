@@ -1,0 +1,548 @@
+APACHE WEB SERVER
+===================
+1. Installation.
+2. Change default Document root & Port.
+3. Create Virtual Host (Name & IP Based).
+4. Directory that can only accessible locally.
+4. Create Protected Directory (BasicAuth).
+5. Deploy CGI Apps (Dynamic Content ie. Ruby/Python/Perl, WSGI is more improved).
+6. TLS Security.
+
+===========================================================================================================================================
+TIPS & TRICKS
+--------------
+** System will read only 1 VHost for every VHosts. (Create only 1 VH file by the name of _vhost.conf and add all the VHosts in that file.)
+** Deploying CGI on different directory recquire SELinux fcontext.  
+** :set number = show line number in vi
+
+
+
+
+
+
+===========================================================================================================================================
+
+INSTALL APACHE IN CENTOS
+=========================
+# yum install httpd -y
+# systemctl start httpd
+# systemctl enable httpd
+# systemctl status httpd
+# firewall-cmd --permanent --add-service=http
+# firewall-cmd --permanent --add-service=https
+# yum install lynx -y
+# lynx http://localhost
+
+
+CHANGE DEFAULT PORT/DOCUMENT ROOT
+==================================
+# etc/httpd/conf/httpd.conf		(change here port and document root)
+
+	* # semanage port -a -t http_port_t -p tcp 8081
+	* # semanage port -m -t http_port_t -p tcp 8081 
+
+	* # semanage fcontext -a -t httpd_sys_content_t "/folder_path(/.*)?"
+       	* # restorecon -R -v /folder_path
+
+
+VIRTUAL HOST (IP BASED)
+=========================
+1. Create website directories in /var/www/html - /www/testsite1.com
+						 /www/testsite2.com
+
+2. Setup Multiple IP on Single NIC (create duplicate files in /etc/sysconfig/network-scripts/)
+	# cd /etc/sysconfig/network-scripts/
+	# cp ifcfg-eth1 ifcfg-eth1:0   (testsite1.com 192.168.30.11)
+	# cp ifcfg-eth1 ifcfg-eth1:1   (testsite2.com 192.168.30.12)
+	# cp ifcfg-eth1 ifcfg-eth1:2   (testsite3.com 192.168.30.13)
+open each one of them, change their IP ADDR & DEVICE name.
+# systemctl restart network
+# ifconfig
+
+3. Create VH files in /etc/httpd/conf.d/testsite1.com.conf  (should end with .conf)
+
+<VirtualHost 192.168.30.11:80>
+    ServerAdmin webmaster@testsite1.com
+    DocumentRoot /web/testsite1.com
+    ServerName www.testsite1.com
+
+    <Directory /web/testsite1.com>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+    </Directory>
+
+    ErrorLog logs/www.testsite1.com-error_log
+    TransferLog logs/www.testsite1.com-access_log
+</VirtualHost>
+
+** Here you can create additional VH files for additional hosts
+
+4. Restart Apache & check check it's working.
+
+
+VIRTUAL HOST (NAME BASED)
+=========================
+1. Create website directories in /var/www/html - /www/sales.example.com
+						 /www/account.example.com
+
+2. Create VH files in /etc/httpd/conf.d/account.example.com.conf  (should end with .conf)
+
+<VirtualHost 192.168.30.10:80>
+    ServerAdmin webmaster@account.example.com
+    DocumentRoot /var/www/html/account.example.com
+    ServerName www.account.example.com
+
+    <Directory /var/www/html/account.example.com>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+    </Directory>
+
+    ErrorLog logs/www.account.example.com-error_log
+    TransferLog logs/www.account.example.com-access_log
+</VirtualHost>
+
+** Here you can create additional VH files for additional hosts
+
+3. Enter the IP ADDR & webaddress in "/etc/hosts" file.  
+
+4. Restart Apache & check check it's working.
+
+error.valid-hall-194418.internal.conf
+
+
+
+LOCALLY ACCESSIBLE DIRECTORY
+=============================
+
+<Directory "/var/www/html/private">
+	order deny,allow
+	deny from all
+	allow from 127.0.0.1 ::192.168.30.10
+</Directory>
+
+
+
+CREATE PROTECTED DIRECTORY
+==========================
+# htpasswd -c /etc/httpd/htpasswd lisa
+
+** Add configuration in your VHost File
+<Directory /var/www/html/account.example.com/secret>
+	AuthType Basic
+	AuthName "Restricted Files"
+	AuthUserFile /etc/httpd/htpasswd
+	Require user lisa	**(Also use "valid-user" to all the users in apache group)
+</Directory>
+
+
+DEPLOY DYNAMIC CONTENTS (CGI/WSGI)
+==================================
+** Download a basic CGI APPS from internet
+** Add this line in your VHost Section
+
+ScriptAlias /cgi-bin/ "/webapp/"	(For Changed Directory)
+ScriptAlias /var/www/cgi-bin/app.cgi	(For Default)
+
+<VirtualHost 192.168.30.10:80>
+    DocumentRoot "/var/www/cgi-bin"
+    ServerName www.cgiapp.example.com
+    ErrorLog logs/www.cgiapp.example.com-error_log
+    TransferLog logs/www.cgiapp.example.com-access_log
+    ScriptAlias /var/www/cgi-bin/app.cgi
+</VirtualHost>
+
+
+ACTIVATE TLS
+=============
+** You will be provided certificate file 
+** You can generate a self-signed certificate using "# genkey SERVER_NAME"
+
+<VirtualHost *:443>
+    ServerAdmin webmaster@account.example.com
+    DocumentRoot /var/www/html/account.example.com
+    ServerName www.account.example.com
+
+SSLEngine on
+SSLCertificateFile "/etc/pki/tls/certs/account.example.com.crt"
+SSLCertificateKeyFile "/etc/pki/tls/private/account.example.com.key"
+
+    ErrorLog logs/www.account.example.com-error_log
+    TransferLog logs/www.account.example.com-access_log
+</VirtualHost>
+
+
+INSTALL LET'S ENCRYPT SSL
+==========================
+# yum install epel-release
+# yum install -y mod_ssl certbot python2-certbot-apache.noarch
+# certbot --apache -d security-alert8956.cf
+
+** For Automatic renewal of SSL
+# crontab -e
+0 0 * * 1 /usr/bin/certbot renew >> /var/log/sslrenew.log
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+==============================================================================================================================================
+DATABASE SERVER
+================
+1. Install and configure MariaDB
+2. Backup and restore a database
+3. Create a simple database schema
+4. Perform simple SQL queries against a database
+
+# yum install mariadb mariadb-server
+# mysql_secure_installation
+# mysql -V	(show version)
+# mysql -p 	(root login)
+
+
+Backup & Restore
+-----------------
+** exit mysql then take databackup
+# mysqldump DATABASE_NAME > BACKUP_NAME.sql -p
+
+** Restore a Database: First create same database (SQL file doesn’t re-create the database itself, It creates Tables)
+# create database DATABASE_NAME;
+# use DATABASE_NAME; 
+# source /path/to/BACKUP_NAME.sql -p;
+
+
+Create User to Access the "BookstoreDB" Database
+------------------------------------------------
+MariaDB [BookstoreDB]> CREATE USER bookstoreuser@localhost IDENTIFIED BY 'YourPasswordHere';
+MariaDB [BookstoreDB]> GRANT ALL PRIVILEGES ON  BookstoreDB.* to bookstoreuser@localhost;
+MariaDB [BookstoreDB]> FLUSH PRIVILEGES;
+
+==============================================================================================================================================
+DNS SERVER
+===========
+1. Configure server1.example.com as a Caching only DNS Server
+2. Configure server2.example.com to use server1 as its DNS SERVER.
+3. Troubleshooting
+
+
+# yum update -y			(All on server1)
+# yum install unbound -y
+
+**Now open config file /etc/unbound/unbound.conf to make modifications
+	* interface: 0.0.0.0			(accept connection on any interface)
+	* access-control: 192.168.40.0/24 allow	(allow client connections)
+	* forward-zone:
+		name: "."
+		forward-addr: 8.8.8.8
+
+# unbound-checkconf
+# systemctl restart unbound
+# systemctl enable unbound
+# firewall-cmd --permanent --add-service=dns
+# firewall-cmd --reload
+
+** Now open nmtui on server2 and set server1 as the DNS server in network interface.  
+
+
+Troubleshoot DNS
+-----------------
+# dig SOMEDOMAIN.COM 
+# unbound-control dump_cache
+# unbound-control flush SOMEDOMAIN.COM
+
+==============================================================================================================================================
+SMTP MAIL SERVER
+=================
+1. Configure Postfix on server1.example.com to accept all emails for example.com (Central mail server - Will be provided in Exam)
+2. Configure server2.example.com to forward all emails to server1.example.com
+3. Troubleshooting
+
+** Postfix is already installed, just need to configure it.
+
+# systemctl start postfix
+# systemctl enable postfix
+# firewall-cmd --permanent --add-service=smtp
+# firewall-cmd --reload
+
+# vi /etc/postfix/main.cf		(on server1, to accept emails - Relay Host)
+	inet_interfaces = 192.168.30.10 (IP of server1)
+	inet_protocols = ipv4
+	mydestination = add example.com	(which domain's email will be accepted)
+# systemctl restart postfix
+
+
+# vi /etc/postfix/main.cf		(on server2, to forward emails - Null Client)
+	myorigin = $mydomain
+	inet_protocols = ipv4
+	mydestination = (delete everything)
+	relayhost = [server1.example.com]
+# systemctl restart postfix
+
+** Send a email from server2 to check it's working
+> mail lisa@example.com
+> .
+EOT
+
+# tail -f /var/log/maillog (check whether email is forward or not)
+
+** Go to server1
+# su -lisa
+# mail
+=============================================================================================================================================
+NTP
+===
+1. Configure chronyd on server1.example.com
+2. Configure server2 to use server1.example.com as NTP Peer
+3. Testing
+
+
+# yum install chrony		(On Server1.example.com)
+# vi /etc/chrony.d
+	allow 192.168.40.0/24
+# systemctl restart chronyd
+# systemctl enable chronyd
+# firewall-cmd --permanent --add-service=ntp 
+# firewall-cmd --reload
+# ntpq -p 	(to verify, time synchronization established with internet )
+# timedatectl
+
+# yum install chrony		(On Server2)
+# vi /etc/chrony.d
+	* Comment out all the NTP pools and add server1 as a peer
+	peer server1.example.com
+# systemctl restart chronyd
+# chronyc sources
+==============================================================================================================================================
+Advance Firewalld
+==================
+	a. Basic
+	b. Rich Rules	(man firewalld.richlanguage - General rule instructions & Example4)
+	c. Custom Rules
+2. Port-Forwardind & NAT/masquerending
+3. Make service Files	(/usr/lib/firewalld)
+# firewall-cmd --permanent --add-service=https
+				-port=8081/tcp
+				-forward-port=port=4404:proto:tcp:toport=22:toaddr=<YOUR-IP-ADDRESS>.
+
+
+NAT/Masquerade
+---------------
+■ In masquerading, the IP address of a node on the internal network is changed by the IP address 
+of the NAT router. The goal is to ensure that the host onthe private network can communicate on 
+the Internet but that it cannot be accessed directly.
+■ In port forwarding, the NAT router redirects all traffic that is addressed to a public port on 
+the NAT router to another port, and often another host, on the private network. Port forwarding is 
+an excellent way to make services on the private network available on a public port on the NAT router.
+
+# firewall-cmd --permanent --zone=public --add-masquerade
+# firewall-cmd --reload
+** firewall-cmd --permanent --zone=<ZONE> --add-rich-rule='rule family=ipv4 source address=10.0.0.0/24 masquerade'
+
+SERVICE FILE
+-------------
+** The only purpose of the firewalld service is to open a port in the firewall;
+# cp /usr/lib/firewalld/services/ssh.xml /etc/firewalld/services/custom-service.xml
+# vi /etc/firewalld/services/custom-service.xml
+# firewall-cmd --reload
+===============================================================================================================================================
+Advance Networking
+==================				-
+1. Configure ipv6 and test connectivity between two servers.
+2. Configure link aggregation between two servers.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+============================================================================================================================================
+NFS
+====
+1. On IPA generate keytab to secure NFS
+2. Configure the following on server1
+	- Normal NFS Share
+	- NFS Share Protected with Kerberos
+3. Configure automatic mount on server2
+
+
+Setting Up NFSv4 Server (Server1)
+-------------------------
+# yum install nfs-utils policycoreutils-python -y
+# vi /etc/exports 
+	/srv/nfsexport 	*(rw,no_root_squash)
+# exportfs -r
+# showmount -e
+# mkdir /srv/nfsexport
+# semanage fcontext -a -t nfs_t "/srv/nfsexport(/.*)?" 
+# restorecon -Rv /srv/nfsexport
+
+# systemctl start nfs-server
+# systemctl enable nfs-server
+# firewall-cmd --permanent --add-service=nfs
+# firewall-cmd --permanent --add-service=mountd
+# firewall-cmd --permanent --add-service=rpc-bind
+# firewall-cmd --reload
+
+NFSv4 Client (Server2)
+----------------------
+# showmount -e server1 (if not works, disable firewall on server1)
+# mkdir /mnt/nfs 
+# mount -t nfs server1:/srv/nfsexport /mnt/nfs
+# vi /etc/fstab
+	server1.example.com:/srv/nfsexport 	/mnt/nfs	nfs 	defaults 	0 0
+# systemctl start nfs-server.service
+# systemctl enable nfs-server.service
+
+
+Setting Up NFS Kerberos Share (Server1)
+---------------------------------------
+* Copy keytab file from IPA server to server1's /etc/krb5.keytab
+# scp root@ipaserver:/root/file.keytab /root
+# cp /file.keytab /etc/krb5.keytab
+# restorecon -v /etc/krb5.keytab	(insure all labels are correct)
+# yum install krb5-workstation
+# klist -k	(will show keytab definations to use in exports)
+# systemctl restart nfs-server
+# vi /etc/exports 
+	/srv/nfsexport 	*(rw,no_root_squash)
+	/srv/secureshare  *(rw,sec=krb5p)
+# exportfs -r
+# showmount -e
+# mkdir /srv/secureshare
+# semanage fcontext -a -t nfs_t "/srv/secureshare(/.*)?" 
+# restorecon -Rv /srv/secureshare
+
+# systemctl start nfs-server
+# systemctl enable nfs-server
+# firewall-cmd --permanent --add-service=nfs
+# firewall-cmd --permanent --add-service=mountd
+# firewall-cmd --permanent --add-service=rpc-bind
+# firewall-cmd --reload
+
+
+NFS Kerberos Client (Server2)
+-----------------------------
+* Copy keytab file from IPA server to server2's /etc/krb5.keytab
+# scp root@ipaserver:/root/file.keytab /root
+# cp /file.keytab /etc/krb5.keytab
+# restorecon -v /etc/krb5.keytab	(insure all labels are correct)
+# yum install krb5-workstation
+# klist -k
+# yum install krb5-workstation
+# showmount -e server1
+# mkdir /mnt/nfs_secure
+# mount -t nfs -o sec=krb5 server1:/srv/secureshare /mnt/nfs_secure
+# vi /etc/fstab
+	server1.example.com:/srv/secureshare 	/mnt/nfs_secure	nfs 	defaults,sec=krb5p 	0 0
+
+===============================================================================================================================================
+SAMBA
+======
+1. On server1.example.com
+	- Normal SMB Share
+	- Multiuser SMB Share
+	- Samba Users
+2. On server2.example.com
+	- Mount Both Shares Automatically
+
+Managing SMB File Sharing
+-------------------------
+1. Install Samba packages.
+2. Prepare directories on Linux.
+3. Prepare permissions on Linux.
+4. Create the share in /etc/samba/smb.conf.
+5. Create Samba user accounts. (first create normal users then samba users)
+	** You can also create a samba group with created samba users
+6. Secure the Samba share.
+
+# yum install -y samba samba-client cifs-utils.
+# mkdir /sambashare
+# chmod 777 /sambashare
+# firewall-cmd --permanent --add-service=samba 
+# firewall-cmd --reload
+# semanage fcontext -a -t samba_share_t "/sambashare(/.*)?"
+# restorecon -Rv /sambashare
+
+# vi /etc/samba/smb.conf
+[sambashare]
+	comment = my share	(search for global)
+	path = /sambashare
+	public = yes
+	writable = no
+	write list = smbuser1	(specify username with write access)
+
+[sambashare_multi]
+	comment = my share
+	path = /sambamultishare
+	public = yes
+	writable = no
+	write list = smbuser2
+	read list = smbuser1
+	
+
+# useradd -s /sbin/nologin smbuser1	(created useraccount)
+# useradd -s /sbin/nologin smbuser2
+# smbpasswd -a smbuser1
+# smbpasswd -a smbuser1			(created samba user)
+# systemctl start smb
+# systemctl enable smb
+
+# smbclient -L //localhost
+# mount -o username=smbuser1 //localhost/sambashare /mnt
+# cd /mnt	(permission denied, SELinux error)
+
+# testparm (Verify Configurations)
+
+
+SMB Client (Server2)
+---------------------
+# yum install cifs-utils
+# mount -t cifs -o username=smbuser1 //localhost/share /mnt
+
+
+==============================================================================================================================================
+
+
+
+
+
+
+
+
+
+
+
+go to CentOS WebPanel Admin GUI at http://SERVER_IP:2030/
+
+http://160.202.37.179:2030
+SSL: https://160.202.37.179:2031
+---------------------
+Username: root
+Password: ssh server root password
+MySQL root Password: BTazVI5fpAPA
+
+ https://160.202.37.179:8083
+    username: admin
+    password: gLeF05D6jY
+

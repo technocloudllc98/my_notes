@@ -1,0 +1,671 @@
+1. External Authentication Kerberos/LDAP
+2. Setting up iSCSI SAN
+3. Performance Monitoring
+4. System Optimization
+5. Configuring Logging
+-------------------M2------------------
+6. Configuring Advanced Networking
+7. Managing Linux Firewall
+8. Configuring Apache Virtual Hosts
+9. Managing Advance Apache Features
+-------------------M3------------------
+10. Configuring a Cache-Only DNS Server
+11. Configuring NFS File Sharing
+12. Managing SMB File Sharing
+-------------------M4------------------
+13. Setting SMTP Server
+14. Managing SSH
+15. Managing MariaDB
+16. Managing Time Services
+17. Shell Scripting
+
+
+
+
+===============================================================================================================================================
+
+External Authentication
+-------------------------
+1. Authenticate using LDAP       (authconfig-tui)
+2. Authenticate using Kerberos
+
+# yum install nscd nss-pam-ldapd    
+# authconfig-tui
+
+** you don't need to create identity server, just use the credentials to download CA Certificates and login.
+
+==============================================================================================================================================
+
+Configuring iSCI SAN (Server1) 
+-------------------------------
+1. Create a Physical Partition
+2. Create two Logical Volumes 	(/dev/vgsan/lvsan1, /dev/vgsan/lvsan2)
+3. install SCI Tool      	(# yum install targetcli) 
+
+# targetcli
+/> cd
+/backstores>
+/backstores> block/ create block1 /dev/vgsan/lvsan1
+	- Created block storage object block1 using /dev/vgsan/lvsan1 
+/backstores> block/ create block2 /dev/vgsan/lvsan2
+	- Created block storage object block2 using /dev/vgsan/lvsan2
+/backstores> fileio/ create file1 /root/diskfile1 1G
+	- Created fileio file1 ........
+/backstores> ls
+/backstores> cd /
+/> cd iscsi
+/iscsi> create iqn.2018-05.com.example:target1
+	** create iqn.<year>-<month>.<inverse_dns>:<identifier>
+/iscsi> ls
+/iscsi> cd iqn.2018-05.com.example:target1/
+/iscsi/iqn.2018-05.com.example:target1> ls
+/iscsi/iqn.2018-05.com.example:target1> cd tpg1
+/iscsi/iqn.2018-05.......:target1/tpg1> acls/ create iqn.2018-05.com.example:server2
+/iscsi/iqn.2018-05.......:target1/tpg1> luns/ create /backstores/block/block1
+/iscsi/iqn.2018-05.......:target1/tpg1> luns/ create /backstores/block/block2
+/iscsi/iqn.2018-05.......:target1/tpg1> luns/ create /backstores/fileio/file1
+/iscsi/iqn.2018-05.......:target1/tpg1> ls
+/iscsi/iqn.2018-05.......:target1/tpg1> portals/ create 192.168.4.101
+/iscsi/iqn.2018-05.......:target1/tpg1> ls
+/iscsi/iqn.2018-05.......:target1/tpg1> cd /
+/> ls
+/> exit
+# firewall-cmd --add-port=3260/tcp --permanent
+# firewall-cmd --reload
+# systemctl start target
+# systemctl enable target
+
+
+Connecting iSCSI SAN to iSCSI initiator (Server2)
+--------------------------------------------------
+** You can use "iscsiadm" man page for commands
+
+# yum -y install iscsi-initiator-utils 
+# vi /etc/isci/initiatorname.iscsi
+	InitiatorName=iqn.2018-05.com.example:server2
+	write & quit.
+# lsscsi
+
+1. First discover iSCSI target
+2. Login to iSCSI target
+
+# iscsiadm --mode discoverydb --type sendtargets --portal <ip_address_of_portal> --discover
+# iscsiadm --mode --targetname <initiator_name> --portal <ip_address_of_portal> --login
+
+** If you don't want to login again after restart, logout the iscsi 
+** if you wan't to completely wipeout all the configuration then you need to delete it
+# iscsi -m node T iqn.whatever... -o delete
+                 "or"
+# cd /var/lib
+# rm -rf iscsi
+
+
+Verifying iSCSI Connection
+---------------------------
+
+# targetcli       (on iSCSI SAN)
+/> ls
+
+# iscsiadm -m session -P 0/1/2   (on iSCSI initiator)
+# iscsiadm -m node -P 1/2
+
+==============================================================================================================================================
+
+Performance Monitoring
+-----------------------
+
+top : press <, > to change parameters
+
+CPU Performance Data
+---------------------
+us : Percentage of time the CPU spends handling processes in user mode.
+sy : Percentage of time the CPU spends in kernel mode.
+ni : Time the server spends handling processes of which the nice value has been adjusted.
+id : Percentage of time the processor spends in the idle loop (availability)
+wa : Time the processor spends waiting for noninterruptible I/O, such as requests to disks, hard-mounted NFS, and tape units. 
+     A high value in this parameter indicates slow-performing storage.
+hi : Time the processor spends handling hardware interrupts. A high value may indicate faulty hardware.
+si : Time the processor spends handling software interrupts.
+st : Percentage of stolen time. This parameter shows in a virtualization environment, where virtual machines are “stealing” 
+     processor time from the hypervisor.
+
+Memory Usage
+------------
+KiB : Mem Total amount of physical memory in KiB (1 KiB = 1024 bytes)
+used: Total amount of RAM that is used for any purpose
+free: Total amount of RAM that is not used for anything
+buffers : Total amount of used memory that is used for storing unstructured data.
+cached Mem : Total amount of memory that is used to cache files that have recently been fetched from disk
+
+**atleast 30% memory should be available for buffer & cached.
+Customizing TOP: add new parameters in top by pressing "f" then press "q" to quit. To make them permanent, press W
+
+
+iostat -d /dev/sda 2 10 : statistics for the /dev/ sda device only, with 10 polling loops in total at a 2-second interval
+vmstat 2 5 : to show 5 polling loops with a 2-second interva virtual memory
+vmstat -s  : detail overview about memory utilization.
+
+sar : system activity monitor (collect data every 10 minutes using cronjob)
+/etc/cron.d/sysstat < sa1 (for short term statistics)
+		    < sa2 (for long term statistics - runs once in a day)
+both these services write their logs to /var/log/sa/saDD (** to read this u need sar utility)
+** Cron services should be in running state to use sar.
+
+# LANG=c sar -b : (LANG=c change the time format to 24 hours)
+# sar -P 0 : Show processes information (CPU utilization)
+# sar -n DEV : show network processes
+
+# echo alias sar='LANG=C sar' >> /etc/bashrc    (Always start sar with 24 hours format)
+
+===============================================================================================================================================
+
+System Optimization
+--------------------
+
+/proc : give every information about different part of system.
+
+/proc/sys : all optimisation done through this directory. (this is not persistent, after reboot it will gone)
+** /etc/systl.conf : edit this file to make it permenent (enter the same parameter in this file that you are changing)
+
+sysctl -a : show system parameters.
+** These parameters shows direct name of /proc file
+net.ipv4.icmp_echo_ignore_all = 0  ;this refers to /proc/sys/net/ipv4/icmp_echo_ignore_all 
+
+** Always first echo the values to /proc files, then test it working then make it permanent using systl.conf 
+Ex: # echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_all
+Now you can input net.ipv4.icmp_echo_ignore_all = 1 ;to /etc/systl.conf file
+
+===============================================================================================================================================
+
+CONFIGURING LOGGING
+--------------------
+
+connecting rsylogd with journald : only through /etc/syslog.conf
+
+Sending to journal
+-------------------
+$Modload omjournal
+*.* :omjournal:
+
+Receiving From Journal
+----------------------
+$ModLoad imuxsock
+$OmitLocalLogging off
+                 "&"
+in /etc/rsyslog.d/listend.conf  
+$SystemLogSocketName /run/systemd/journal/syslog 
+
+configuring remote logging : /etc/syslog.conf
+*.* @@remote-host:514   (replace remote host with your server name)
+
+
+===============================================================================================================================================
+
+ADVANCE NETWORKING
+-------------------
+
+nmcli con up "connection_name"
+nmcli con down "connection_name"
+
+** You can directly edit configuration files 
+# vim /etc/sysconfig/network-scripts/ifcfg-static
+# nmcli con reload (to reload all the new configuration) 
+
+** You can use nmtui, after any modification always deactivate & then activate the connection.
+
+netstat -tulpen  : ports and services
+ss: ports and services
+ip link show (current configuration)
+ip route show
+brctl show (show bridge con)
+
+
+1. Adding a new connection
+	Profile name : con name
+	Device name  : Ifname
+2. Add primary ipv4_address/default_gateway/dns_server
+3. Add secondary ipv4_address/default_gateway/dns_server
+4. Activate the connection.
+5. Configuring Static Routing
+		Destination: network that you want to add
+		Next Hop : Router that need to be contact to go to destination
+6. Configuring IPv6
+	ip6: 2001:db8:0:10::d000:310/64
+	gw6: 2001:db8:0:10::1
+	DNS: 8.8.8.8
+	
+7. Setting Bridge Networking
+-----------------------------
+# yum install bridge-utils
+# nmcli dev show (copy interface name)
+# nmcli dev disconnect <interface_name>
+# nmtui
+
+8. Aggregate Network Interfaces 
+--------------------------------
+a) Bonding
+b) Teaming
+
+Bonding
+--------
+# nmcli con add type bond ifname mybond0 mode active-backup   	(Add a Bond Connection)
+# nmcli con add type ethernet ifname test1 master mybond0	(Add 1st Physical interface)
+# nmcli con add type ethernet ifname test2 master mybond0	(Add 2nd Physical interface)
+# nmcli dev show mybond0                                       
+# nmcli con mod bond-mybond0 ipv4.addresses 192.168.122.210/24	(Give IP)
+# nmcli con up bond-mybond					(UP the connection)
+
+Teaming
+--------
+# nmcli con add type team con-name team0 ifname team0 		(Add team Connection)
+ 
+# nmcli con mod team0 ipv4.addresses 10.0.0.10/24		(give IP & set to manual)
+# nmcli con mod team0 ipv4.method manual
+# nmcli con add type team-slave ifname eth0 master team0 con-name team0-eth0 (Add eth0 to master connection)
+# nmcli con add type team-slave ifname eth1 master team0 con-name team0-eth1 (Add eth1 to master connection)	
+
+# nmcli con up team0
+# teamdctl team0 state
+
+** man nmcli-examples
+
+===============================================================================================================================================
+
+Managing Linux Firewall
+------------------------
+
+firewall-cmd --get-zones	(show all zones)
+firewall-cmd --get-active-zones	(show active zone)
+firewall-cmd --get-services	(show all services)
+firewall-cmd --list-service	(show running services)
+
+firewall-cmd --permanent --add-service=vnc-server	(add service)
+firewall-cmd --permanent --add-source=10.0.0.1/24	(add IP)
+firewall-cmd --permanent --add-port 8000/tcp		(add port)
+firewall-cmd --reload
+
+** cd /usr/lib/firewalld/services	(service files - don't edit it) 
+   cd /etc/firewalld/services    	(manually created services)
+
+
+1. Creating Custom Firewalld Services 	(Copy a service & edit)
+
+2. Configuring Rich-Rules 		(man firewalld.richlanguage)
+--------------------------	
+Rich rules are used to create allow/deny rules, but with advanced options, such as the following:
+■ Logging configuration
+■ Port forwarding
+■ Masquerading
+■ Rate limiting
+■ Allow/deny connections for one specific zone
+
+The basic ordering rules within zones are as follows:
+	1. Direct rules
+	2. Port forwarding and masquerading rules
+	3. Logging rules
+	4. Allow rules
+	5. Deny rules
+
+Enable new IPv4 and IPv6 connections for protocol 'ah'
+# firewall-cmd --permanent add-rich-rule='rule protocol value="ah" accept'
+  
+Allow new IPv4 and IPv6 connections for service ftp and log 1 per minute using audit
+# firewall-cmd --permanent add-rich-rule='rule service name="ftp" log limit value="1/m" audit accept'
+
+Allow new IPv4 connections from address 192.168.0.0/24 for service tftp and log 1 per minutes using syslog
+# firewall-cmd --permanent add-rich-rule='rule family="ipv4" source address="192.168.0.0/24" service name="tftp" log prefix="tftp" level="info" limit value="1/m" accept'
+
+New IPv6 connections from 1:2:3:4:6:: to service radius are all rejected and logged at a rate of 3 per minute. New IPv6 connections from other sources are accepted.
+# firewall-cmd --permanent add-rich-rule='rule family="ipv6" source address="1:2:3:4:6::" service name="radius" log prefix="dns" level="info" limit value="3/m" reject'
+# firewall-cmd --permanent add-rich-rule='rule family="ipv6" service name="radius" accept'
+
+Forward IPv6 port/packets receiving from 1:2:3:4:6:: on port 4011 with protocol tcp to 1::2:3:4:7 on port 4012
+# firewall-cmd --permanent add-rich-rule='rule family="ipv6" source address="1:2:3:4:6::" forward-port to-addr="1::2:3:4:7" to-port="4012" protocol="tcp" port="4011"'
+
+White-list source address to allow all connections from 192.168.2.2
+# firewall-cmd --permanent add-rich-rule='rule family="ipv4" source address="192.168.2.2" accept'
+
+Black-list source address to reject all connections from 192.168.2.3
+# firewall-cmd --permanent add-rich-rule='rule family="ipv4" source address="192.168.2.3" reject type="icmp-admin-prohibited"'
+
+Black-list source address to drop all connections from 192.168.2.4
+# firewall-cmd --permanent add-rich-rule='rule family="ipv4" source address="192.168.2.4" drop'
+
+
+3. Configuring NAT
+-------------------
+# firewall-cmd --permanent --zone=<ZONE> --add-masquerade 	(Add masquerading)
+                                 "OR"
+# firewall-cmd --permanent --zone=<ZONE> --add-rich-rule='rule family=ipv4 source address=10.0.0.0/24 masquerade'
+
+# firewall-cmd --permanent --zone=public --add-forward-port=port=2022:proto=tcp:toport=22:toaddr=10.0.0.10
+(forward all packets coming in at port 2022 on the NAT router to an SSH process on internal host 10.0.0.10.)
+
+==============================================================================================================================================
+
+Advance Apache Configurations
+------------------------------
+
+Apache Configuration files
+	/etc/httpd/conf/httpd.conf	(main conf file)
+	/etc/httpd	(Server Root)
+	/etc/httpd/conf.modules.d	(modules files)
+	/var/www/html	(Document root)
+
+
+1. Change Document Root
+------------------------
+change configuration file then
+# semanage fcontext -a -t httpd_sys_content_t "/newdocumentfolder'(/.*)?”
+# restorecon -Rv /newdocumentfolder
+
+** give document access to your web developer team create ACL on document root
+# groupadd webdev
+# setfacl -R -m g:webdev:rwX /newdocumentfolder
+# setfacl -R -m d:webdev:rwX /newdocumentfolder
+# getfacl /newdocumentfolder 
+
+
+2. Create Virtual Hosts
+------------------------
+# mkdir -p /srv/web/sales
+# cd /srv/web/sales
+# vi index.html
+* Create a file sales.conf in the directory /etc/httpd/conf.d, with this content
+
+<Directory /srv/web/sales>
+	Require all granted
+	AllowOverride None
+</Directory>
+
+<VirtualHost *:80>
+	ServerAdmin root@sales.example.com
+	DocumentRoot /srv/web/sales
+	ServerName sales.example.com
+	ErrorLog logs/sales-error_log
+        CustomLog logs/sales-access_log combined
+</VirtualHost>
+
+# semanage fcontext -a -t httpd_sys_content_t "/srv/web(/.*)?"
+# restorecon -Rv /srv/web
+# systemctl restart httpd
+
+===============================================================================================================================================
+
+Managing Advance Apache Features
+----------------------------------
+
+1. Basic Authentication (password protected directories)
+--------------------------
+# htpasswd -c /etc/httpd/htpasswd lisa (create a apache user)
+
+# vim /etc/httpd/conf/httpd.conf 	(add a secret directory section in conf file)
+<Directory /var/www/html/secret>
+	AuthType Basic
+	AuthName "secret files"
+	AuthUserFile /etc/httpd/htpasswd
+	Require user valid-user
+</Directory>
+
+# mkdir /var/www/html/secret 	(create a protected folder)
+# vi index.html 		(create contents in folder)
+
+2. TLS
+---------
+# yum install crypto-utils mod_ssl
+# genkey sales.example.com
+
+** After generating the certificate and key, you can configure a virtual host with TLS
+# vi /etc/httpd/conf.d/ssl.conf
+	SSLCertificateFile /etc/pki/tls/certs/localhost.crt 
+	SSLCertificateFile /etc/pki/tls/private/localhost.key
+
+change 	localhost.cert to sales.example.com.crt 
+	localhost.key to sales.example.com.key  
+
+# systemctl restart httpd
+
+
+** NOTE : Use httpd manual for additional configuration
+# yum install httpd-manual
+
+===============================================================================================================================================
+
+Configuring a Cache-Only DNS Server
+------------------------------------
+# yum install -y unbound
+# systemctl start unbound 
+# systemctl enable unbound
+# vi /etc/unbound/unbound.conf
+	interface: 0.0.0.0			(accept incoming connections on any interface)
+	access-control: 0.0.0.0/0 allow      	(allow everybody)
+	forward-zone:
+		name: "."
+		forward-addr: 8.8.8.8
+:wq!
+
+# unbound-checkconf
+# systemctl restart unbound
+# systemctl status -l unbound
+# firewall-cmd --permanent --add-service=dns
+# firewall-cmd --reload
+
+TRoubleshooting
+-----------------
+# unbound-control dump_cache
+# unbound-control flush cnn.com (replace website name)
+
+# dig petspacare.xyz
+# dig MX petspacare.xyz
+# dig NS petspacare.xyz
+
+===============================================================================================================================================
+
+Configuring NFSv4
+------------------
+
+Setting Up NFSv4 Server (Server1)
+-------------------------
+# yum install nfs-utils policycoreutils-python -y
+# vi /etc/exports 
+	/srv/nfsexport 	*(rw,no_root_squash)
+# mkdir /srv/nfsexport
+# semanage fcontext -a -t nfs_t "/srv/nfsexport(/.*)?" 
+# restorecon -Rv /srv/nfsexport
+
+# systemctl start nfs-server
+# systemctl enable nfs-server
+# firewall-cmd --permanent --add-service nfs 
+# firewall-cmd --reload
+
+NFSv4 Client (Server2)
+----------------------
+# showmount -e server1 (if not works, disable firewall om server1)
+# mkdir /mnt/nfs 
+# mount server1:/srv/nfsexport /mnt/nfs
+# vi /etc/fstab
+	server1.example.com:/srv/nfsexport 	/mnt/nfs	nfs 	_netdev 	0 0
+
+===============================================================================================================================================
+
+Managing SMB File Sharing
+-------------------------
+1. Install Samba packages.
+2. Prepare directories on Linux.
+3. Prepare permissions on Linux.
+4. Create the share in /etc/samba/smb.conf.
+5. Create Samba user accounts. (first create normal users then samba users)
+	** You can also create a samba group with created samba users
+6. Secure the Samba share.
+
+# yum install -y samba samba-client cifs-utils.
+# mkdir /sambashare
+# chmod 777 /sambashare
+# vi /etc/samba/smb.conf
+[sambashare]
+	comment = my share
+	path = /sambashare
+	public = yes
+	writable = yes
+	writelist = +users
+# useradd -s /sbin/nologin lisa	(created useraccount)
+# smbpasswd -a lisa		(created samba user)
+# systemctl start smb
+# systemctl enable smb
+
+# smbclient -L //localhost
+# mount -o username=lisa //localhost/sambashare /mnt
+# cd /mnt	(permission denied, SELinux error)
+# setenforce 0
+# cd /mnt
+
+# testparm (Verify Configurations)
+
+
+SMB Client (Server2)
+---------------------
+# yum install cifs-utils
+# mount -o username=lisa //localhost/share /mnt
+
+SELinux Samba
+--------------
+# semanage fcontext -a -t samba_share_t "/sambashare(/.*)?"
+# restorecon -Rv /sambashare
+# firewall-cmd --permanent --add-service=samba 
+# firewall-cmd --reload
+
+==============================================================================================================================================
+
+Setting SMTP Server
+--------------------
+
+On RHEL 7, Postfix is used as the mail service. Postfix consists of different processes that take care of specific tasks each.
+The processes are directed by the Postfix master service, which reads the /etc/postfix/master.cf configuration file to find out 
+which services are used for specific tasks.
+
+Configure Mail Server (201)
+---------------------------
+# vi /etc/postfix/mail.cf
+	inet_interfaces = all
+	myorigin = $mydomain
+	mydestination = securitytools.ga, fixthisnow.xyz (not compulsary)
+	inet_protocols = ipv4 
+# systemctl restart postfix
+
+Configure Mail Client (202)
+----------------------------
+# postconf -e "relayhost=[server201.example.com]"
+# postconf -e "inet_interfaces=loopback-only"
+# postconf -e "mynetwork=127.0.0.0/8"
+# postconf -e "mydestination="
+	       inet_protocols = ipv4
+# mail -s mailtolisa1 lisa@server201.example.com < ,
+
+** Now goto mail server, login as lisa
+# su - lisa
+# mail             (error, no message ARRIVED) 
+
+Troubleshooting (202)
+----------------------
+# postqueue -p                (AAAA error)
+# vi /etc/postfix/mail.cf
+	inet_protocols=ipv4   (do it on both 201,202) 
+# systemctl restart postfix	
+# postqueue -f
+# tail -f /var/log/messages
+# mutt
+
+===============================================================================================================================================
+
+Managing SSH
+-------------
+
+Key-based Authentication
+-------------------------
+# ssh-keygen -t dsa    (use passphrase also)
+# ssh-copy-id server2
+** NOTE: if you don't want to use passphrase on same terminal again & again 	# ssh-agent /bin/bash
+										# ssh-add (enter passphrase) 
+
+SSH options
+------------
+# vi /etc/ssh/sshd_config
+	Port : SSH Port (Change it for Additional Security) 
+	ListenAddress : Accepted IP address (0.0.0.0 means all) 
+	PermitRootLogin : Accept Root connection (set it to no for security)
+	AllowUsers sander (Only sander can access SSH, even if root login is allowed)
+	MaxSessions : Simultaneously Connections
+	GSSAPI Options : For Kerberos Authentication
+
+Change Port
+------------
+# vi /etc/ssh/sshd_config
+	Port : 2022
+# man semanage-port  		(for port examples)
+# semanage port -a -t ssh_port_t -p tcp 2022
+# semanage port -l | grep ssh 	(to find correct port configuration)
+# systemctl restart sshd
+# firewall-cmd --permanent --add-port=2022/tcp  
+# firewall-cmd --reload
+# systemctl status -l sshd 
+
+SSH Tunneling (Port Forwarding)
+--------------------------------
+** SSH Server works as a mediator in Port Forwarding
+# ssh -fNL 4444:server.rhatcertification.com:80 root@server2.example.com
+# elinks http://localhost:4444           (it will take you to rhatcertification.com)	
+
+
+
+
+
+
+
+
+
+
+
+ipa-server-install --setup-dns
+sudo for i in http https ldap ldaps kerberos kpasswd dns ntp; do firewall-cmd --permanent --add-service $i; done
+
+firewall-cmd --permanent --add-service={ntp,http,https,ldap,ldaps,kerberos,kpasswd,dns}
+cp ~/cacert.p12 /var/ftp/pub
+
+lisa@C.STEEL-APPARATUS-197520.INTERNAL
+yum groupinstall "Directory Client"
+
+
+scp 10.142.0.2:/root/cacert.p12 /etc/openldap/cacerts
+
+
+wget -r ftp://10.142.0.2/pub/
+
+
+URI ldaps://ipaserver.c.steel-apparatus-197520.internal
+BASE dc=c,dc=steel-apparatus-197520,dc=internal
+TLS_CACERT /etc/ipa/ca.crt
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

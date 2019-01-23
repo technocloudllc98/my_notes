@@ -1,0 +1,206 @@
+sudo nano /etc/network/interfaces
+## the loopback network interfaces
+auto lo
+iface lo inet loopback
+
+## the primary network interface
+auto enp0s3
+iface enp0s3 inet static
+	address 192.168.1.100
+	netmask 255.255.255.0
+	gateway 192.168.1.1
+	dns-nameservers 192.168.1.100 8.8.8.8
+	dns-search test.local
+
+# sudo nano /etc/hosts
+127.0.0.1	localhost
+127.0.1.1	ad1.test.local	ad1
+
+# sudo nano /etc/hostname
+ad1
+
+# sudo reboot
+
+# apt-get install samba krb5-user krb5-config winbind libpam-winbind libnss-winbind
+	TEST.LOCAL
+	ad1.test.local
+	ad1.test.local
+
+# systemctl stop samba-ad-dc.service smbd.service nmbd.service winbind.service
+# systemctl disable samba-ad-dc.service smbd.service nmbd.service winbind.service
+# sudo mv /etc/samba/smb.conf /etc/samba/smb.conf.initial
+# sudo mv /etc/krb5.conf /etc/krb5.conf.initial
+# sudo samba-tool domain provision --use-rfc2307 --interactive
+	DNS Forwarder IP address [192.168.1.101]:8.8.8.8 
+# reboot
+# sudo systemctl start samba-ad-dc.service
+# sudo systemctl status samba-ad-dc.service
+# sudo systemctl enable samba-ad-dc.service
+# reboot
+
+# netstat -tulpn | egrep samba
+# samba-tool domain level show
+
+# samba-tool user add user1 User1@123 --given-name=user1 --surname=Smith --mail-address=user1@test.local --login-shell=/bin/bash
+# samba-tool user add user2 User2@123 --given-name=user2 --surname=Wills --mail-address=user2@test.local --login-shell=/bin/bash
+# samba-tool user list
+
+Domain Time Synchronization
+=============================
+# apt-get install ntp ntpdate
+# vi /etc/ntp.conf
+	pool 0.ro.pool.ntp.org iburst
+	pool 1.ro.pool.ntp.org iburst
+	pool 2.ro.pool.ntp.org iburst
+
+	# Use Ubuntu's ntp server as a fallback.
+	pool 3.ro.pool.ntp.org
+** Comment all of the others time pool
+
+driftfile /var/lib/ntp/ntp.drift
+ntpsigndsocket /var/lib/samba/ntp_signd/	(Add this line)
+** At the top of this file
+
+restrict source notrap nomodify noquery
+restrict default kod nomodify notrap nopeer mssntp (Add this line) 
+** At Bottom of file
+
+# sudo chown root:ntp /var/lib/samba/ntp_signd/
+# sudo chmod 750 /var/lib/samba/ntp_signd/
+# sudo systemctl restart ntp
+# sudo netstat –tulpn | grep ntp
+# ntpq -p	(to verify)
+
+===============================================================================================================================================
+Prepare Windows PC to join ADDC
+================================
+Control panel -> Network and Internet -> Network and Sharing Center -> Ethernet card -> Properties -> IPv4 -> Properties -> 
+	IP Address: 10.0.2.10
+	Subnet: 255.0.0.0
+	Gateway: 10.0.2.2
+	DNS1 : 192.168.1.100 (Samba IP)
+	DNS2 : 8.8.8.8
+
+ping test.local
+ping ad1.test.local
+
+Control Panel -> Clock, Language and Region -> Set Time and Date -> Internet Time tab -> Change Settings
+** write your domain name on Synchronize with and Internet time server field > OK.
+
+System Properties -> Change -> Member of Domain > Write your Domain name & hit OK.
+# reboot
+
+===============================================================================================================================================
+Administer Samba4 AD DC with RSAT
+==================================
+** Download RSAT
+Control Panel -> Programs (Uninstall a Program) -> Turn Windows features on or off and check all RSAT's.
+** Active Directory Users & Computers (RSAT App)
+
+Control Panel -> System and Security -> Administrative Tools
+
+
+Prepare Ubuntu to Join ADDC
+============================
+** Wired Connection modifications
+	IP Address: 10.0.2.11
+	Subnet: 255.0.0.0
+	Gateway: 10.0.2.2
+	DNS : 192.168.1.100 (Samba IP)
+	
+/24 = 255.255.255.0
+/8  = 255.0.0.0
+
+# vi /etc/network/interface
+auto eth0
+iface eth0 inet static
+	address 10.0.2.11
+	netmask 255.0.0.0
+	gateway 10.0.2.2
+	dns-nameservers 192.168.1.100 8.8.8.8
+	dns-search test.local
+
+# sudo apt-get install resolvconf
+# vi /etc/resolvconf/resolv.conf.d/base	(Persistent change in /etc/resolv.conf)
+	nameserver 192.168.1.100
+	search test.local 
+
+# sudo apt-get install ntpdate
+# sudo ntpdate -q ad1
+# sudo ntpdate ad1
+# sudo apt-get install samba krb5-config krb5-user winbind libpam-winbind libnss-winbind
+
+# add-apt-repository ppa:emoraes25/cid && apt-get update
+# apt-get install cid cid-gtk
+# cid join domain=example.com user=administrator pass=p@$$w0rd
+
+
+
+
+
+
+ROAMING PROFILE
+================
+# mkdir -p /srv/samba/profiles/
+# chmod -R 777 /srv/
+# mkdir /srv/samba/shares/
+# chmod -R 777 /srv/
+# vi /etc/samba/smb.conf
+[profiles]
+         comment = Users profiles
+         path = /srv/samba/profiles/
+         browseable = No
+         read only = No
+         force create mode = 0600
+         force directory mode = 0700
+         csc policy = disable
+         store dos attributes = yes
+         vfs objects = acl_xattr
+
+[shares]
+         comment = Users profiles
+         path = /srv/samba/shares/
+         browseable = No
+         read only = No
+         force create mode = 0600
+         force directory mode = 0700
+         csc policy = disable
+         store dos attributes = yes
+         vfs objects = acl_xattr
+testparm
+
+# samba-tool user create bob 
+# samba-tool group addmembers administrators bob
+# samba-tool group addmembers "Domain Admins" bob (rykle)
+
+# samba-tool user create kaas 
+# samba-tool group addmembers administrators kaas
+# samba-tool group addmembers "Domain Admins" kaas
+# samba-tool group listmembers "Domain Admins"
+# samba-tool group listmembers administrators
+
+* GPM > Create a GPO & List it here > Name (roaming profiles) > edit (roaming profiles) > 	  
+	User Configuration > Policies > Windows Settings > Folder Redirection >>> Desktop (Properties) 
+	Target > Settings: Basic- Redirect everyone's Folder to same location
+               > Target folder location: Create a folder for each user under root directory
+	       > Root Path: \\ad1\profiles >>>> OK
+** Pictures, Documents, Downloads 
+
+* GPM > Create a GPO & List it here > Name (shares) > edit (shares) >
+	User Configuration > Preferences > Windows Settings > Drive Maps > new (Mapped Drive)
+									> Action : Create
+									> Location : \\ad1\shares
+									> Label as : Shared Drive
+									> Hide/Show this drive : Show
+									> Hide/Show all drive : No Changes
+
+** gpupdate.exe
+** gpupdate /force
+
+
+
+
+
+
+
+

@@ -1,0 +1,193 @@
+LAB -19
+--------
+1. At the grub boot prompt, go to emergency.target mode  systemd.unit=emergency.target
+2. From emergency.target swith to graphical.target
+3. Create a Partition and set systemd automount to /test
+
+# mkdir /test
+# cd /etc/systemd/system/
+# vim test.mount 
+	[Unit]
+	Description = test mount
+		
+	[Mount]
+	What = /dev/vdb5
+	Where = /test
+	Type = ext4
+
+	[Install]
+	WantedBy = multi-user.target
+
+# systemctl start test.mount
+# systemctl status test.mount
+# umount /test
+# vi test.automount
+	[Unit]
+	Description = test mount
+
+	[Automount]
+	Where = /test
+
+	[Install]
+	WantedBy = multi-user.target
+
+# systemctl stop test.mount
+# systemctl status test.mount
+# systemctl stop test.automount
+# systemctl status test.automount
+# df -h
+
+
+
+
+
+
+LAB -20 (Troubleshooting Boot)
+-------------------------------
+1.At the grub boot prompt, go to rescue mod > systemd.unit=rescue.target (on linux line)
+# cat /etc/default/grub
+
+2. Recover grub password- At the grub boot prompt, enter rd.break(on linux line)
+swith_root:/# mount -o remount,rw /sysroot
+swith_root:/# chroot /sysroot
+sh-4.2# echo <new_password> | passwwd --stdin root
+passwd: updated successfully
+sh-4.2# touch ./autorelabel
+sh-4.2# exit 0r Ctrl+D
+swith_root:/# logout 0r Ctrl+D
+
+
+LAB -21 (HTTPD)
+----------------
+# rpm -qc httpd   (show all configuration files)
+# cat /etc/httpd/conf/httpd.conf (main configuration)
+
+# cd /var/www/html/             (Document root)
+# vi index.html
+
+NOTE: If you want to change default apache directory then you will have to do 
+it in SELinux also
+
+
+LAB -21 (SELinux)
+-------------------
+1. Change HTTPD ports & document root /
+
+
+
+CREATE LVM
+------------
+
+1. Create a simple Partition and before writing changes change it's type to Linux LVM :8e
+2. Create Physical Volume
+3. Create Volume Group
+4. Create Logical Volume
+5. make Filesystem & Mount it.
+
+# fdisk /dev/vdb    (create a partition)
+# pvcreate /dev/vdb3
+# pvs
+# vgcreate myvg /dev/vdb3
+# vgs
+# lvcreate -n mylv -L 1000M myvg
+# mkfs.ext4 /dev/myvg/mylv
+# mount /dev/myvg/mylv /mnt
+
+
+INCREASE LVM SIZE
+------------------
+1. First Create a Physical Volume
+2. You can Directly extend Volume Group.
+3. Extend LV directly.
+
+# fdisk /dev/vdb
+# vgextend myvg /dev/vdb5
+# vgs
+# lvextend -l +100%FREE -r /dev/myvg/mylv
+# df -h
+
+REDUCING LVM SIZE
+------------------
+1. Unmount the disk
+2. Resize the FS 
+3. Reduce LV size
+4. 
+
+# umount /mnt
+# e2fsck -f /dev/myvg/mylv             (check file system)
+# resize2fs /dev/myvg/mylv 1000M
+# lvreduce -L 102400K /dev/myvg/mylv         (reduce to 100 MiB)
+# mount -a
+# df -h
+
+
+==========================================
+
+SSH
+=====
+
+Key-Based Authentication
+--------------------------
+1. Create key in host system: 	# ssh-keygen
+2. Copy key to server1		# ssh-copy-id server1
+
+File-Transfer b/w ssh
+----------------------
+1. File Transfering b/w ssh	# scp file_naME target_location
+				# scp /etc/hosts server1:/tmp	(copy /etc/host to tmp/ of server1)
+				# scp root@sever1:/etc/hosts ~	(connect as root & copy /etc/hosts file to your home directory)
+				# scp -r server1:/etc/ /tmp   	(copy recursevely -full / structure)
+
+Hardening SSH Server 
+--------------------
+1. Disable root login		# vi /etc/ssh/sshd_config : PermitRootLogin no
+				# systemctl restart sshd
+
+2. Configuring A/n Ports	# vi /etc/ssh/sshd_config : Port 2202
+				# semanage port -a -t ssh_port_t -p tcp 2022 	(allow port modification in SELinux)
+				# firewall-cmd --permanent --add-port=2022/tcp 	(add port 2022 to firewall)
+				# firewall-cmd --reload 
+				# systemctl restart sshd (restart the sshd service for new configuration to take affects)
+
+3. Limiting User Access         # vi /etc/ssh/sshd_config - AllowUser <user> 	(add this line)
+				# systemctl restart sshd
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

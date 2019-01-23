@@ -1,0 +1,142 @@
+1. Install Virtual
+2. Install Vagrant
+3. Verify Vagrant installation
+	# vagrant version
+
+** Each Project has it's own directory and vagrant file.
+Each vagrant Project needs its vagrant file and box image
+
+Vagrant is a Just Script file, that will automate the process of VM creation on your Virtualization Provider using BOX (image templates).
+You can also create your own image file, and you can specify the networking, RAM, HDD Space used by your VMs with Vagrant File. You can
+create a VM within seconds with VM.
+In the same directory only one vagrant machine can be created so move the old vagrant files to a new directory before creating new VMs.
+Each time when you create a new project you need to create a specific directory, this is how vagrant differentiate between VMs. 
+
+4. Vagrant Basic Command
+	# vagrant init bento/ubuntu-16.04; vagrant up --provider virtualbox
+vagrant init centos/7; vagrant up --provider virtualbox
+	# vagrant ssh     (SSH your VM)
+	# vagrant halt    (first exit SSH)
+	# vagrant suspend (pause)
+	# vagrant resume  (resume)
+	# vagrant reload  (after making any changes in the vagrant file)
+	# vagrant destroy (delete your VM)	
+
+** Search more boxes at https://vagrantcloud.com/search
+	
+	# mv ../../Vagrantfile ../../.vagrant . (move both files to a separate directory)
+	# vagrant up 	  (from the same directory where you put Vagrantfile)
+
+# vagrant box add http://myboxurl/vagrant.box 
+# vagrant status
+
+**Shared folder b/w Host and Guest : In Host : Folder which contains Vagrantfile
+				     In Guest: vagrant@vagrant:~$ cd /vagrant/
+you add more shared folders using Vagrantfile
+
+# config.vm.synced_folder ".", "/vagrant", disabled: true   (to disable default share) 
+
+==============================================================================================
+
+Automate the process using shell script
+----------------------------------------
+
+config.vm.provision "shell", path: "deployLAMP.sh", privileged: false			(run command with vagrant user)
+
+==============================================================================================
+
+Networking
+----------
+
+1. Port Forwarding :
+2. Private Network : host only n/w 
+	config.vm.network "private_network", ip: "192.168.33.10"   (gives a static IP)
+	config.vm.network "private_network", type: "dhcp"	   (Assign DHCP Available)
+** First check IP range of your VB (ifconfig -a) before assigning any static ip to vm.
+
+3. Public Network : to access VM from anywhere, it recquire a bridged n/w interface. i will ask everytime when you power on the machine.
+	config.vm.network "public_network", bridge: "en1"        (assign a specific interface for bridging)
+** You can use multiple n/w interface at same time.
+
+==============================================================================================
+
+MultiMachine deployment with a single Vagrant File
+---------------------------------------------------
+- Apache, PHP & Laravel - app server
+- MYSQL - Database Server
+
+	config.vm.define "app" do |app|
+	app.vm.provision "shell", inline: "echo I Am The App Server" 
+	end
+	config.vm.define "db" do |db|
+	app.vm.provision "shell", inline: "echo I Am The Database Server" 
+	end
+
+                  "OR"  
+config.vm.define "app" do |app|
+app.vm.provision "chef_solo", run_list["app"]
+app.vm.network "private_network", ip: "172.28.128.10"
+end
+config.vm.define "db" do |app|
+app.vm.provision "chef_solo", run_list["db"]
+app.vm.network "private_network", ip: "172.28.128.100"
+end
+
+
+
+config.vm.define "app" do |app|
+app.vm.network "private_network", ip: "172.28.128.10"
+end
+config.vm.define "db" do |app|
+app.vm.network "private_network", ip: "172.28.128.100"
+end
+
+
+Vagrant.configure("2") do |config|
+  config.vm.define "ubuntu-vm" do |vm1|
+   vm1.vm.box = "bentu/ubuntu-16.04"
+   vm1.vm.hostname = "ubuntu-vm"
+   vm1.vm.network :private_network, ip: "172.28.128.10"
+
+   vm1.vm.provider "virtualbox" do |vb|
+     vb.name = "ubuntu-vm"
+     vb.gui = false
+     vb.memory = 1024
+end
+
+
+  config.vm.define "centOS-vm" do |vm2|
+   vm2.vm.box = "bentu/centos-7.2"
+   vm2.vm.hostname = "centOS-vm"
+   vm2.vm.network :private_network, ip: "172.28.128.20"
+
+   vm2.vm.provider "virtualbox" do |vb|
+     vb.name = "centOS-vm"
+     vb.gui = false
+     vb.memory = 1024
+end
+
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

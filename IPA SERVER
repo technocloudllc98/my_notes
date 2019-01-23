@@ -1,0 +1,63 @@
+FreeIPA Server
+----------------
+# hostnamectl set-hostname ipaserver.internal.lab
+# yum install -y ipa-server ipa-server-dns bind-dyndb-ldap
+# systemctl start rpcbind
+# systemctl enable rpcbind
+# ipa-server-install --setup-dns
+	additional DNS Forwarder : 8.8.8.8
+	Do you want to search for missing reverse zones? yes
+
+# firewall-cmd --permanent --add-service={http,https,ldap,ldaps,kerberos,dns,kpasswd,ntp}
+# firewall-cmd --reload
+# cat /etc/ipa/default.conf
+
+host = ipaserver.internal.lab
+basedn = dc=internal,dc=lab
+
+# kinit admin (obtain a Kerberos ticket)
+# klist
+
+** ipa admin password: abhay@123
+** ipa directory pass: frank@8957
+
+Preparing Your IPA Server for User Authentication
+--------------------------------------------------
+# yum install -y vsftpd
+# systemctl enable vsftpd 
+# systemctl start vsftpd
+# cp ~/cacert.p12 /var/ftp/pub			(Provide Cert file to other using FTP)
+# firewall-cmd --permanent --add-service=ftp
+# firewall-cmd --reload
+# klist
+# ipa user-add lisa
+# ipa user-add lori
+# ipa passwd lisa    lisa@123
+# ipa passwd lori    lori@123
+
+** Note: You have to convert this .p12 to .PEM format using any online utilities.
+
+Client Side
+------------
+# yum install nss-pam-ldapd pam_krb5
+# scp ipaserver.internal.lab:/root/cacert.p12 /etc/openldap/cacerts/ (copy certificate in /etc......)
+# yum install authconfig-tui
+	host = ldap://ipaserver.internal.lab
+	basedn = dc=internal,dc=lab
+
+** Open the file /etc/nslcd.conf and make sure that it contains the line "tls_reqcert never". 
+Use "systemctl restart nslcd" to restart the nslcd service.
+# su - lisa
+ -sh-4.2$
+
+
+Preparing Your IPA Server for Kerberized Authentication
+---------------------------------------------------------
+
+
+
+
+
+
+
+

@@ -1,0 +1,55 @@
+
+CREATE LOCAL REPO
+-------------------------------
+* We need a file "repodata" only createrepo command can create this file, you already have this file in dvd, so copy the whole dvd
+* If you dont have whole dvd avalilable, use command createrepo /copied_folder, after copying the packages.
+* gpgcheck should be 0 
+* cleanall > update > repolist
+* if you are copying whole folder then don't forget to use -r (recursively)
+	# cp -rv * /destinstion
+* cd - : take you to your last working directory
+* sudo !! : run the previous command with sudo pri
+
+
+DISK PARTITIONING
+------------------------------
+* in LVM & LUKS disks don't create filesystem after creation of standard disks, first follow all the procedures on disk
+& then create the filesystem and mount that device in the last.
+* always use /dev/.....
+
+
+FILE PERMISSION
+--------------------------
+* in file/directory permission ques, always start with "ls -l /directory or file_name" to get an overview of what is available
+  and what you need to configure on that file or directory.
+* First configure file/directory ownership <  file/directory permission <Special permission (GID) & Sticky bit <  ACL.
+* linux doesn't define owner of a group, you can only set user owner and group owner of a file/directory.
+** Always use Special Permission in a shared permission environment.
+
+Ownership : # chown -R bob:account account/        (bob is the owner of acc group as well as acc/, remove bob if group owner is not specified)
+permission : # chmod 770 account/
+Spe. Perm. : # chmod g+s account/	(set gid - all user of group will get write permission, it will also inherit the permission to newly created files)
+		  : # chmod +t *         		(in data/, sticky bits on all files =delete files only if u r the owner of group/file or root)
+ACL		  : # setfacl -R -m g:............ 	(current ACL)
+		  : # setfacl -m d:g:.............	(default ACL)
+
+
+MANAGING VIRTUAL MACHINE
+---------------------------------------------
+virsh list --all
+virsh start server1
+virsh destroy server1
+virsh shutdown server1 
+
+
+172.25.0.0/24
+enable DHCP Start: 172.25.0.10
+End 172.25.0.254
+
+server1 ip: 172.25.0.40
+gateway : 172.25.0.1
+
+virsh list --all
+virsh start server1
+virsh destroy server1
+virsh shutdown server1 

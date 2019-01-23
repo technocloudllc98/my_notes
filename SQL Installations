@@ -1,0 +1,132 @@
+Install MariaDB on CentOS 7
+===========================
+
+Step 1: Create the MariaDB 10.1 YUM repo file
+----------------------------------------------
+cat <<EOF | sudo tee -a /etc/yum.repos.d/MariaDB.repo
+# MariaDB 10.1 CentOS repository list
+# http://downloads.mariadb.org/mariadb/repositories/
+[mariadb]
+name = MariaDB
+baseurl = http://yum.mariadb.org/10.1/centos7-amd64
+gpgkey=https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
+gpgcheck=1
+EOF
+
+Step 2: Install MariaDB 10.1 using YUM
+---------------------------------------
+sudo yum install MariaDB-server MariaDB-client -y
+
+Step 3: Start the MariaDB service and make it auto-start on system boot
+------------------------------------------------------------------------
+sudo systemctl start mariadb.service
+sudo systemctl enable mariadb.service
+sudo systemctl status mariadb.service
+
+Step 4: Secure the installation of MariaDB
+------------------------------------------
+sudo /usr/bin/mysql_secure_installation
+
+    Enter current password for root (enter for none): Just press the Enter button
+    Set root password? [Y/n]: Y
+    New password: your-MariaDB-root-password
+    Re-enter new password: your-MariaDB-root-password
+    Remove anonymous users? [Y/n]: Y
+    Disallow root login remotely? [Y/n]: Y
+    Remove test database and access to it? [Y/n]: Y
+    Reload privilege tables now? [Y/n]: Y
+
+Step 5: Check MariaDB Version & Login
+--------------------------------------
+# mysql -V
+# mysql -u root -p
+
+
+
+
+
+
+
+
+
+Install MySQL on CentOS 7
+==========================
+
+Download and add the repository, then update.
+----------------------------------------------------
+wget http://repo.mysql.com/mysql-community-release-el7-5.noarch.rpm
+sudo rpm -ivh mysql-community-release-el7-5.noarch.rpm
+sudo yum update
+
+Install MySQL as usual
+-----------------------
+sudo yum install mysql-server
+sudo systemctl start mysqld
+
+Harden MySQL Server
+-------------------
+sudo mysql_secure_installation
+mysql -V
+mysql -u root -p
+(When prompted, enter the root password you assigned when the mysql_secure_installation script was run)
+
+Create a New MySQL User and Database
+-------------------------------------
+CREATE DATABASE testdb;
+CREATE USER 'testuser'@'localhost' IDENTIFIED BY 'password';
+GRANT ALL PRIVILEGES ON testdb.* to 'testuser'@'localhost' IDENTIFIED BY 'password';
+FLUSH PRIVILEGES;
+exit
+
+
+
+
+Install PHP 7 on CentOS 
+========================
+
+Enable Epel, Webtatic repo
+---------------------------
+# yum install epel-release
+# rpm -Uvh https://mirror.webtatic.com/yum/el7/webtatic-release.rpm
+
+Install PHP with all modules
+-----------------------------
+# yum install php71w php71w-common php71w-gd php71w-phar php71w-xml php71w-cli php71w-mbstring php71w-tokenizer php71w-openssl php71w-pdo
+# php -v 	(Check PHP version)
+
+Create info Page
+----------------
+# echo '<?php phpinfo(); ?>' > /var/www/html/infophp.php 
+
+then point your browser to http://127.0.0.1/infophp.php which opens this file in web browser. "OR"
+# php -f /var/www/html/infophp.php
+
+
+
+
+Install Laravel On CentOS
+=========================
+
+# curl -sS https://getcomposer.org/installer | php
+# mv composer.phar /usr/bin/composer
+# composer create-project laravel/laravel /var/www/html/laravel
+# vi /etc/httpd/conf/httpd.conf
+	DocumentRoot "/var/www/html/laravel/public"
+# systemctl restart httpd
+
+# chown -R vagrant:vagrant /var/www/html/laravel
+# chmod -R 777 /var/www/html/laravel/storage
+
+verify laravel installation
+---------------------------
+cd /var/www/html/laravel
+[laravel]# php artisan -v
+
+
+
+
+
+
+
+
+

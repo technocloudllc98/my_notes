@@ -1,0 +1,160 @@
+MOST IMPORTANT COMMANDS
+=======================
+
+# git status --online	(show list of commitment made to our project)
+# git status -v 	(showmade changes also)
+# git commit -a-m "message"
+# git config gc.pruneexpire "30 days"
+# git push -u <remote> <localbranch>
+
+** Working Directory > Stagging (Index) > Local Repo > Remote Repo
+** when we commit a change, it leaves staging area and enter into branching.
+** Take branching as additional features, you can have many branches and after finalizing a feature you can add it in master branch.
+
+
+
+===============================================================================================================================================
+# apt/yum install git
+# git --version
+# man git
+
+
+CREATING GIT REPOSITORY
+==========================
+# git init /path/to/directory
+# git init --bare /path/to/directory (for large projects)
+
+
+GIT CONFIG
+===========
+# git config --global user.name "Nikhil Sharma"
+# git config --global user.email "nikhilsd6111@gmail.com"
+# git config --global core.editor "/usr/bin/vim"
+# git config --list
+# cat ~/.gitconfig
+
+** GIT uses a folder approach just like Vagrant, so you can define configuration for every project folder
+# cd /project_folder
+# git config user.email "nikhilsd6111@gmail.com"
+# git config core.editor "usr/bin/vim"
+# git config --list
+
+** If two configs are there, git will use the last one listed.
+
+
+ADDING FILES TO PROJECT
+========================
+#### copy the file to project folder first
+# git add <file/folder_name>  	(add file to index area for tracking in staging)
+# git status			(what file are in staging area)
+# git rm <file/folder_name>	(remove file from index and delete it)
+# git rm --cached <file/folder_name>	(remove file from index-git tracking)
+# git commit -m "message"
+# git commit -a-m "message"   	(direct commit changes bypassing staging)
+
+
+IGNORING CERTAIN FILE
+======================
+** .git/info/exclude		(original file that contains exclude file)
+# touch .gitignore		(create a file in project directory)
+# git add .gitignore
+# git status
+# git commit .gitignore 	(commit the .gitignore file)
+
+** NOW add name of the file/directory in this file that you want to ignore.
+# git commit -a -m "update our gitignore file".
+
+** VIM always create a backup file of edited file by "~filename", always ignore this file.
+# git check-ignore <pattern>	(check which file is ignored using given pattern) 
+
+
+TAG, BRANCHING, MERGING, REVERTING
+====================================
+# git tag -a <tagname> -m <messages>	(created annotated tag)
+# git tag <tagname> -m <messages>	(create lightweight tag)= a temporary label or sticky
+# git tag -d <tagname>			(delete a tag)
+
+# git branch <new_branch_name>		(create a branch)
+# git checkout <new_branch_name>	(change your project brance)
+# cat .git/HEAD
+# git log --online
+** It is always good practice to create a branch for pending projects because master branch is being shared by others
+** when changing branches, master branch doesn't take last commitment done in your working branch.
+
+# git merge <new_branch_name> 		(merge new branch to master branch)
+# git branch -d <new_branch_name> 	(delete a branch)
+
+# git rebase <new_branch_name>          (rebase the new branch to master branch)
+** REBASING a alternative to merging 
+** It will apply the changes & commitment made to new branch on the top of Master Branch.
+** MERGING provides a step by step history of your File, Where REBASING doesn't.
+
+# git revert HEAD	(Revert last commitment)
+# git revert HEAD~2	(Revert second commit from HEAD or Third Commit shown in status --online cmd)
+
+
+GARBAGE COLLECTION (cleaning)
+==============================
+# git gc
+# git gc --prune 			(Clean Out Objects that are older than two weeks)
+# git config gc.pruneexpire "30 days"	(Automatically clean after every 30 days)
+
+git log --since="4 days ago"
+git log --stat	(show changes during every commi)
+
+
+COMMANDS
+=========
+# git clone <local_repo> <new_repo> 	(Clone LOCAL repo)
+# git clone <remote_URL>		(Clone a remote repo)
+
+
+GITHUB
+=======
+* Create a Account in Github.
+* Create a Project Repo in Github.
+* Create SSH key in your local system and paste it in Github Settings.
+* Now Clone the Remote repo from your host.
+* cd into repo directory(Locally) and initiate "git remote".
+
+# git remote -v
+# git remote show origin	
+# git fetch origin   		(Track remote Changes)
+# git pull 			
+
+** Don't push directly to remote master branch, Create a branch make changes, commit then push
+
+# git branch readme-updates
+# git checkout readme-updates
+# echo "This is README file upadte" >> README.md
+# git commit -a -m "updated README"
+# git push -u origin readme-updates 
+
+** git commit = used to save your changes to the local repository.
+** git fetch = will download changes from a remote repository, but only to the staging area, and it will not attempt to merge them.
+** git pull =  will pull down changes from the remote repository and attempt to merge them with the local copy of the repository.
+** git push =  send changes from local repo to remote repo.
+
+
+sudo EXTERNAL_URL="http://gitlab.example.com" yum install -y gitlab-ce
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

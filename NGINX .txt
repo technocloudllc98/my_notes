@@ -1,0 +1,345 @@
+** rpm -qc nginx
+** /etc/nginx/conf.d/default.conf    (This contain VHost demo, use it)
+** /docs/core_module/server
+** fastCGI - PHP Server
+** WSGI - Pyhton Server
+
+INSTALL NGINX IN CENTOS
+========================
+# vi /etc/yum.repos.d/nginx.repo
+[nginx]
+name=nginx repo
+baseurl=http://nginx.org/packages/centos/7/$basearch/
+gpgcheck=0
+enabled=1
+
+# sudo yum install nginx
+# sudo systemctl start nginx
+# sudo yum install lynx
+# lynx http://localhost
+** nginx -t : Check everything is OK.
+
+
+NGINX CONFIGURATION FILES
+==========================
+Directory	- /etc/nginx
+Main conf	- /etc/nginx/nginx.conf
+default VHost 	- /etc/nginx/conf.d/default.conf   (copy & use this file as a base for VH's)  
+VHost conf	- /etc/nginx/conf.d/* 
+
+
+NGINX VIRTUAL HOST (Domain based)
+==================================
+1. Create directories for the VHost in your document root. (/usr/share/nginx/html/*)
+2. Create index file in their directory.
+3. Create a VHosts Configuration files in /etc/nginx/conf.d/
+4. # touch sales.example.com.conf
+###########################################################################
+#	                                                                  #
+#	server{                                                  	  #
+#	        listen          80;                                       #
+#	        server_name     testing1.com www.testing1.com;            #
+#	       		                                                  #
+#	                root /var/www/testing1.com/public_html;           #
+#	                index index.html;                                 #                                                 
+#	}                                                                 #
+#                                                                         #
+###########################################################################
+
+5. make sure this line is in nginx.conf file (include /etc/nginx/conf.d/*.conf;)   
+6. Edit the host file to include the domains.
+7. restart nginx.
+
+**** NOTE: semanage permissive -a httpd_t	(Semanage for NGINX)
+
+
+NGINX VIRTUAL HOST (IP based)
+==============================
+** Create second IP on same NIC
+        # eth1 192.168.33.100	
+	# ifconfig eth0:1 192.168.33.101
+
+1. Follow the same Procedure
+2. in "sales.example.com.conf" enter second generated ip before port 80. 
+
+
+CHANGE DOCUMENT ROOT & PORT
+============================
+
+	* # semanage port -a -t http_port_t -p tcp 8081
+	* # semanage port -m -t http_port_t -p tcp 8081 
+
+	* # semanage fcontext -a -t httpd_sys_content_t "/folder_path(/.*)?"
+       	* # restorecon -R -v /folder_path
+
+
+CUSTOM ERROR PAGE (404, 403)
+============================
+** include error page location in VHost conf file (/404.html)
+** Create a custom  error page (/404.html)
+
+
+HTTP AUTH
+===========
+1. Add this in your server block (VHost conf file)
+		location = /admin.html {
+        	auth_basic "Login Required this is protected directory!!";
+        	auth_basic_user_file /etc/nginx/.htpasswd;
+    		}
+
+2. Add a admin page in public_html page.
+3. # yum install -y httpd-tools
+4. # htpasswd -c /etc/nginx/.htpasswd admin (htpasswd -c <password_file_location> <username>)
+5. # systemctl restart nginx
+
+
+Configure TSL/SSL/HTTPS
+========================
+1. generate a Self-Signed Certificate
+2. Edit your "Server block file" to include SSL/HTTPS 
+
+# mkdir /etc/nginx/ssl
+# openssl req -x509 -nodes -days 365 \
+  	-newkey rsa:2048 \
+  	-keyout /etc/nginx/ssl/private.key \
+  	-out /etc/nginx/ssl/public.pem
+
+** Add it before location (after root /var/www.....)
+    ssl_certificate /etc/nginx/ssl/public.pem;
+    ssl_certificate_key /etc/nginx/ssl/private.key;
+
+** Can also ADD this
+	listen 443 ssl;
+
+
+SETUP REWRITE (hide page extensions)
+=====================================
+** Edit your server block after SSL & befor location. 
+	- rewrite ^(/.*)\.html(\?.*)?$ $1$2 redirect;
+	- rewrite ^/(.*)/$ /$1 redirect;
+	
+	location / {
+		try_files $uri/index.html $uri.html $uri/ $uri =404;	(add this line in every location block)
+	}
+
+# nginx -t
+# systemctl reload nginx
+
+
+AUTOMATIC REDIRECTION OF HTTP TO HTTPS
+=======================================
+** in the main server block replace "listen 80" to "listen 443 ssl"
+** Add another server block before main block to redirect traffic
+
+server{                                                  	  
+	        listen          80 default server;                                     
+	        server_name     sales.example.com www.sales.example.com;
+		return 301 https://$host$request_uri;
+}
+
+# nginx -t
+# systemctl reload nginx
+
+
+Configure ModSecurity (Web Application Firewall)
+=================================================
+# yum groupinstall 'Development tools'
+# yum install autoconf automake bzip2 flex gcc git httpd-devel libaio-devel libass-devel libjpeg-turbo-devel libpng12-devel 
+# yum install libtheora-devel libtool libva-devel libvdpau-devel libvorbis-devel libxml2-devel libxslt-devel perl texi2html unzip 
+# yum install zip openssl openssl-devel geoip geoip-devel
+
+# cd /opt/
+# git clone --depth 1 -b v3/master --single-branch https://github.com/SpiderLabs/ModSecurity.git
+$ cd ModSecurity
+$ git submodule init
+$ git submodule update
+$ ./build.sh
+$ ./configure
+$ make
+$ make install
+
+# cd /opt
+# git clone --depth 1 https://github.com/SpiderLabs/ModSecurity-nginx.git
+# nginx -v
+	nginx version: nginx/1.12.2
+# wget http://nginx.org/download/nginx-1.14.0.tar.gz
+# tar zxvf nginx-1.14.0.tar.gz
+# cd nginx-1.14.0
+# ./configure --with-compat --add-dynamic-module=../ModSecurity-nginx
+# make modules
+# cp objs/ngx_http_modsecurity_module.so /etc/nginx/modules/
+
+# vi /etc/nginx/nginx.conf
+	load_module /etc/nginx/modules/ngx_http_modsecurity_module.so;	(after pid line)
+# nginx -t
+
+# mkdir /etc/nginx/modsecurity
+# cp /opt/ModeSecurity/modsecurity.conf-recommended /etc/nginx/modsecurity/modsecurity.conf
+# sed -i 's/SecRuleEngine DetectionOnly/SecRuleEngine On/' /etc/nginx/modsecurity/modsecurity.conf
+
+# vi /etc/nginx/conf.d/default.conf
+ 	modsecurity on;		(after document root)
+    	modsecurity_rules_file /etc/nginx/modsecurity/modsecurity.conf;
+
+# nginx -t
+# systemctl reload nginx
+
+==============================================================================================================================================
+Reverse Proxy
+==============
+** Proxy sits between clients and internet, used to monitor web traffic
+** R-Proxy site between internet and our server, used to load balance traffic and serve cached content. 
+
+
+Reverse Proxy (Apps running on Ports)
+======================================
+** Install ngiNX, we need to disable webserver configuration (VHosts) and create a reverse proxy VHost file.
+
+server {
+    listen 80;
+    server_name abc.apachenode1.com;
+
+    client_max_body_size 5m;
+
+    location / {
+        proxy_pass http://192.168.33.110/;	(Replace it with backened server IP) 127.0.0.1:3000
+        proxy_http_version 1.1;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP  $remote_addr;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+
+
+Reverse Proxy FastCGI Wordpress Blog/Website (Apps running on Sockets)
+======================================================================
+** Install LEMP stack & then wordpress
+
+# yum install -y centos-release-scl
+# yum update
+# yum install -y rh-php71-php rh-php71-php-fpm rh-php71-php-mysqlnd
+# vi /etc/opt/rh/rh-php71/php-fpm.d/www.conf
+	; Set user and group
+	user = nginx
+	group = nginx
+	; Set to listen on a socket instead of port.
+	listen = /var/run/php-fpm.sock
+	; Set permissions on Unix socket.
+	listen.owner = nginx
+	listen.group = nginx
+	listen.mode = 0660
+# systemctl start rh-php71-php-fpm
+# systemctl enable rh-php71-php-fpm
+----------------------------------------------------
+# vi /etc/yum.repos.d/mariadb.repo
+	[mariadb]
+	name = MariaDB
+	baseurl = http://yum.mariadb.org/10.2/centos7-amd64
+	gpgkey=https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
+	gpgcheck=1
+# yum update
+# yum install -y MariaDB-server MariaDB-client MariaDB-devel MariaDB-shared
+# systemctl start mariadb
+# systemctl enable mariadb
+# mysql_secure_installation
+# mysql -u root -p
+	> CREATE DATABASE wordpress;
+	> GRANT ALL PRIVILEGES ON wordpress.* TO wpuser@localhost IDENTIFIED BY "p@ssw0rd";
+	> FLUSH PRIVILEGES;
+	> \q
+Database Name: wordpress
+Database User: wpuser
+Database Password: p@ssw0rd
+----------------------------------------------------
+# mkdir /var/www/blog.example.com
+# wget -q -O - http://wordpress.org/latest.tar.gz | tar -xzf - --strip 1 -C /var/www/blog.example.com
+# cp /var/www/blog.example.com/wp-config-sample.php /var/www/blog.example.com/wp-config.php
+# chown -R nginx:nginx /var/www/blog.example.com
+# vi /var/www/blog.example.com/wp-config.php
+	* Change here DATABASE_NAME, DATABASE_USER, DATABASE_PASSWORD
+	* https://api.wordpress.org/secret-key/1.1/salt/	(Copy value & Paste it)
+
+# vi /etc/nginx/conf.d/blog.example.com.conf
+server {
+    listen 80;
+    server_name blog.example.com;
+
+    root /var/www/blog.example.com;
+    index index.php;
+
+    location / {
+        try_files $uri $uri/ /index.php?$args;
+    }
+
+    location ~ \.php$ {
+        fastcgi_index index.php;
+        fastcgi_pass unix:/var/run/php-fpm.sock;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    }
+}
+
+
+Reverse Proxy wsgi Apps (Python/Django)
+========================================
+
+Simple Caching For Static Contents
+===================================
+
+Micro Caching
+==============
+
+
+NGINX As Load Balancer
+=======================
+Testing Environment
+----------------------
+Load Balancer:
+IP Address – 192.168.5.157
+Hostname – ha.example.com
+
+WebServer 1:
+IP Address – 192.168.5.158
+Hostname – ws1.example.com
+
+WebServer 2:
+IP Address – 192.168.5.159
+Hostname – ws2.example.com
+
+
+# vim /etc/nginx/nginx.conf	(Open main Config file of LB)
+
+upstream backend {
+   server 192.168.5.158;
+   server 192.168.5.159;
+}
+
+server {
+   listen 80;
+
+   location / {
+      proxy_pass http://backend;
+   }
+}
+
+** REmove all webserver funtion and set it to use as load balancer
+# systemctl start nginx
+# systemctl enable nginx
+# firewall-cmd --permanent --add-service=http
+# firewall-cmd --permanent --add-service=https
+# firewall-cmd --reload
+
+
+
+
+
+
+
+
+
+
+
+
+
+

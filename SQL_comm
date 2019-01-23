@@ -1,0 +1,134 @@
+POSTGRE INSTALLATION IN UBUNTU
+===============================
+
+# apt-get update
+# sudo apt-get install postgresql
+
+# sudo -u postgres psql postgres
+postgres=# \password postgres
+Enter new password: ****
+Enter it again: ****
+
+# apt-get install pgadmin3
+
+Running pgAdmin
+----------------
+Register a new Server
+	name : my-database
+	host : localhost
+	Port : 5432
+	username : postgres
+
+
+
+# sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+# sudo apt-get install wget ca-certificates
+# wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+# sudo apt-get update
+# sudo apt-get upgrade
+# sudo apt-get install postgresql-10 pgadmin4   # on wheezy/jessie/trusty: pgadmin3
+
+
+http://www.techbeamers.com/sql-query-questions-answers-for-practice/
+
+
+========================================================================================================
+
+sudo mysql_secure_installation
+
+
+mysql -u root -p
+CREATE DATABASE Testdb;
+CREATE USER 'TestUser'@'localhost' IDENTIFIED BY '1234';
+GRANT ALL PRIVILEGES ON Testdb.* TO 'TestUser'@'localhost';
+FLUSH PRIVILEGES;
+
+
+mysql -u TestUser -p
+SHOW DATABASES;
+USE Testdb;
+
+
+CREATE TABLE orders (
+	OrderID int NOT NULL AUTO_INCREMENT,
+	FirstName varchar (255) NOT NULL,
+	LastName varchar (255) NOT NULL,
+	Age int CHECK (Age>=18),
+	Store varchar (255) UNIQUE,
+	Agent varchar (255) DEFAULT 'Nikhil',
+	PRIMARY KEY (OrderID)
+	) ;
+
+
+DESC orders;	(Describe a Table)
+INSERT INTO orders (FirstName, LastName, Age, Store)
+VALUES ('Abhay', 'Sharma', '21', 'East');
+
+
+INSERT INTO NewTableName SELECT * FROM orders;    (AS A BACKUP)
+
+
+ALTER TABLE orders
+ADD sales_agent varchar (255) NOT NULL;
+
+ALTER TABLE orders
+ALTER COLUMN sales_agent varchar (50) NOT NULL;    (CHANGING DATA TYPE OF A COLUMN)
+
+ALTER TABLE orders
+DROP TABLE sales_agent ;
+
+DELETE FROM table_name WHERE ................
+
+
+CREATE INDEX index_name                            (it will help you if you will process/sort long data on indexed columns)
+ON table_name (column1, column2, ...);
+
+ALTER TABLE table_name
+DROP INDEX index_name;
+
+TRUNCATE
+AUTO_INCREMENT 	(ALTER TABLE table_name AUTO_INCREMENT='1000';)
+
+
+SELECT COUNT(*) FROM table_name;
+SELECT COUNT(DISTINCT column_names) FROM table_name;   (SELECT contents should be in count function)  
+
+
+SELECT COUNT(*), AVG(column_name), SUM(column_name) WHERE ..............
+FROM table_name;
+
+tips
+=====
+WHERE Age='18'   or    WHERE Age LIKE '18'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
